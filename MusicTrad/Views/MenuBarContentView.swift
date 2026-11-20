@@ -10,12 +10,16 @@ struct MenuBarContentView: View {
             TrackHeader(showsAppButtons: true)
                 .padding(16)
             Divider()
+            if app.ecoMode {
+                EcoView().frame(height: 320)
+            } else {
             LyricsView()
                 .frame(height: 640)
             Divider()
             PlaybackControls()
                 .padding(.vertical, 12)
-            if floatingWindowEnabled {
+            }
+            if floatingWindowEnabled && !app.ecoMode {
                 Button {
                     openWindow(id: FloatingWindowView.id)
                     NSApp.activate()

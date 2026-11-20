@@ -5,9 +5,12 @@ struct MusicTradApp: App {
     @State private var appState = AppState()
 
     var body: some Scene {
-        MenuBarExtra("MusicTrad", systemImage: "quote.bubble") {
+        MenuBarExtra {
             MenuBarContentView()
                 .environment(appState)
+        } label: {
+            // Feuille en mode éco, bulle de paroles sinon.
+            Image(systemName: appState.ecoMode ? "leaf" : "quote.bubble")
         }
         .menuBarExtraStyle(.window)
 

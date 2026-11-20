@@ -20,7 +20,10 @@ nonisolated struct NetEaseClient: Sendable {
     }
 
     private let session: URLSession = {
-        let config = URLSessionConfiguration.default
+        // Sans cookies : avec un cookie de session, NetEase renvoie des résultats sans rapport.
+        let config = URLSessionConfiguration.ephemeral
+        config.httpShouldSetCookies = false
+        config.httpCookieAcceptPolicy = .never
         config.timeoutIntervalForRequest = 10
         config.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 (Macintosh)", "Referer": "https://music.163.com/"]
         return URLSession(configuration: config)

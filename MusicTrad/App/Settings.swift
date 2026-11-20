@@ -24,6 +24,8 @@ enum SettingsKey {
     static let openWindowAtLaunch = "openWindowAtLaunch"
     static let cacheLimitMB = "cacheLimitMB"
     static let cacheMaxAgeDays = "cacheMaxAgeDays"
+    static let ecoMode = "ecoMode"
+    static let ecoAtLaunch = "ecoAtLaunch"
 }
 
 enum SettingsDefault {
@@ -40,6 +42,8 @@ enum Preferences {
     static var prefetchNext: Bool { d.object(forKey: SettingsKey.prefetchNext) as? Bool ?? true }
     /// Fenêtre flottante désactivée par défaut : à cocher dans Réglages › Général.
     static var floatingWindowEnabled: Bool { d.bool(forKey: SettingsKey.floatingWindowEnabled) }
+    /// Démarrer en mode éco (activé par défaut).
+    static var ecoAtLaunch: Bool { d.object(forKey: SettingsKey.ecoAtLaunch) as? Bool ?? true }
     static var openWindowAtLaunch: Bool { floatingWindowEnabled && d.bool(forKey: SettingsKey.openWindowAtLaunch) }
     static var cacheLimitMB: Int {
         let v = d.integer(forKey: SettingsKey.cacheLimitMB)

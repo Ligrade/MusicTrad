@@ -11,6 +11,7 @@
 		09FBC3423E3E5F960D37CCDB /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6BE6737454F7D9B3C953691 /* MenuBarContentView.swift */; };
 		0DB717F79BCD8B8B9F0FDDCA /* LyricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9CD3BF18714C1A35DA33D8B /* LyricsView.swift */; };
 		0F6E054B59F400608A17411E /* MusicTradApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 268A3C11C1A02F498B58E9AA /* MusicTradApp.swift */; };
+		185E73AC88DAB7C3A3170ED5 /* EcoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 417DC58D066C2F3107864651 /* EcoView.swift */; };
 		1BBBC67FDF2A75932142AB0D /* DiskCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF8C41447C9D845BA6895824 /* DiskCache.swift */; };
 		2BBE8063BB7C6BC0038609A3 /* MusicPlayerMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F463B34E4C3ECF31542CC8D /* MusicPlayerMonitor.swift */; };
 		2DFB640A9BD73E8744A54A98 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50EC35C1967070DB3C73BE74 /* ArtworkService.swift */; };
@@ -41,6 +42,7 @@
 		2967549C93FDD38D45600E35 /* LRCLIBClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRCLIBClient.swift; sourceTree = "<group>"; };
 		3CC702325C4ADFEF16E51192 /* DeepLTranslator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLTranslator.swift; sourceTree = "<group>"; };
 		3E2A4F3FF43629F552C5CFED /* MusicTrad.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MusicTrad.entitlements; sourceTree = "<group>"; };
+		417DC58D066C2F3107864651 /* EcoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EcoView.swift; sourceTree = "<group>"; };
 		4200EC05F9DF4E63C541AF04 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		50EC35C1967070DB3C73BE74 /* ArtworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkService.swift; sourceTree = "<group>"; };
 		510F9B4BA57705BB302C0AD0 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
@@ -156,6 +158,7 @@
 			isa = PBXGroup;
 			children = (
 				6B1CE95299F125099585F8F5 /* AirPlayButton.swift */,
+				417DC58D066C2F3107864651 /* EcoView.swift */,
 				69013B4C4AAE2C023D3D8862 /* FloatingWindowView.swift */,
 				F9CD3BF18714C1A35DA33D8B /* LyricsView.swift */,
 				E6BE6737454F7D9B3C953691 /* MenuBarContentView.swift */,
@@ -245,6 +248,7 @@
 				F9A14320438DDE4B426A0403 /* CacheManager.swift in Sources */,
 				F3ADC1C81F2965BA0F3C6320 /* DeepLTranslator.swift in Sources */,
 				1BBBC67FDF2A75932142AB0D /* DiskCache.swift in Sources */,
+				185E73AC88DAB7C3A3170ED5 /* EcoView.swift in Sources */,
 				4962299706672AB26F9C419F /* FloatingWindowView.swift in Sources */,
 				A68FD25CEB1B66BF6F80E250 /* KeychainStore.swift in Sources */,
 				5FCCAED396D93E9B0396FFD8 /* LRCLIBClient.swift in Sources */,

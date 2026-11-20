@@ -73,6 +73,7 @@ struct LyricsView: View {
                             fontSize: fontSize,
                             translationScale: translationScale,
                             blurInactive: blurInactive,
+                            sourceIsFrench: app.sourceLanguage?.isFrench == true,
                             onTap: line.time == nil ? nil : { app.seek(to: line) }
                         )
                         .id(line.id)
@@ -119,6 +120,8 @@ private struct LineRow: View {
     let fontSize: Double
     let translationScale: Double
     let blurInactive: Bool
+    /// Chanson en français : le français reste blanc et la traduction anglaise passe en rouge.
+    var sourceIsFrench = false
     /// Paroles synchronisées : un clic replace Musique au début de la ligne.
     var onTap: (() -> Void)?
     @State private var hovering = false
@@ -134,18 +137,21 @@ private struct LineRow: View {
                 BreakRow(isCurrent: isCurrent, fontSize: fontSize)
             } else {
                 VStack(alignment: .leading, spacing: fontSize * 0.15) {
+                    // Règle de couleur : le français en blanc, l'autre langue en rouge.
+                    let originalColor = sourceIsFrench ? LyricsPalette.translation : LyricsPalette.original
+                    let translationColor = sourceIsFrench ? LyricsPalette.original : LyricsPalette.translation
                     if onlyTranslation, hasTranslation, let translation {
                         Text(translation)
                             .font(.system(size: fontSize, weight: .bold))
-                            .foregroundStyle(LyricsPalette.translation)
+                            .foregroundStyle(translationColor)
                     } else {
                         Text(original)
                             .font(.system(size: fontSize, weight: .bold))
-                            .foregroundStyle(LyricsPalette.original)
+                            .foregroundStyle(originalColor)
                         if hasTranslation, let translation {
                             Text(translation)
                                 .font(.system(size: fontSize * translationScale, weight: .semibold))
-                                .foregroundStyle(LyricsPalette.translation)
+                                .foregroundStyle(translationColor)
                                 .transition(.opacity.combined(with: .offset(y: 6)))
                         }
                     }
@@ -219,18 +225,16 @@ private struct TranslationBanner: View {
             switch app.translationStatus {
             case .translating, .partial:
                 HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Traduction en cours…") }
-            case .alreadyFrench:
-                Label("Chanson en français : pas de traduction", systemImage: "checkmark.circle")
-            case .needsDownload(let lang):
+            case .needsDownload(let lang, let target):
                 HStack {
                     Text("Langue « \(lang.displayName) » à télécharger.")
                     Button("Télécharger") {
-                        downloadConfig = .init(source: lang, target: .french)
+                        downloadConfig = .init(source: lang, target: target)
                     }
                 }
             case .failed(let msg):
                 Label(msg, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
-            case .idle, .done:
+            case .idle, .done, .alreadyFrench:
                 EmptyView()
             }
             }

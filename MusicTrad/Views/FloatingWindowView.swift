@@ -11,9 +11,13 @@ struct FloatingWindowView: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 28)   // place pour les boutons de fenêtre
                 .padding(.bottom, 8)
-            LyricsView()
-            PlaybackControls()
-                .padding(.vertical, 14)
+            if app.ecoMode {
+                EcoView()
+            } else {
+                LyricsView()
+                PlaybackControls()
+                    .padding(.vertical, 14)
+            }
         }
         .frame(minWidth: 360, minHeight: 320)
         .containerBackground(LyricsPalette.background, for: .window)

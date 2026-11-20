@@ -8,6 +8,7 @@ struct TrackHeader: View {
     /// Boutons Réglages et Quitter en haut à droite (menu de la barre des menus).
     var showsAppButtons = false
     @Environment(\.dismiss) private var dismiss
+    @State private var hoveringArtist = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -43,6 +44,14 @@ struct TrackHeader: View {
                             FavoriteButton()
                         }
                         Text(t.artist).font(.title3).foregroundStyle(.secondary).lineLimit(1)
+                            .underline(hoveringArtist)      // souligné au survol, comme un lien
+                            .onHover { hoveringArtist = $0 }
+                            .onTapGesture {
+                                if showsAppButtons { dismiss() }
+                                app.openArtist()
+                            }
+                            .pointerStyle(.link)
+                            .help("Ouvrir la page de l'artiste dans Musique")
                     }
                     .frame(height: artworkSize)
                 }
@@ -73,30 +82,57 @@ private struct Pill<Content: View>: View {
     }
 }
 
-/// « EN → FR » ; garde sa place même vide pour ne pas décaler le reste.
+/// « EN → FR » pour une chanson étrangère. Pour une chanson en français, devient un bouton
+/// « FR → EN » qui traduit en anglais seulement au clic (re-clic : on revient sans traduction).
+/// Garde toujours sa place pour ne rien décaler.
 private struct LanguagePill: View {
+    @Environment(AppState.self) private var app
     let language: Locale.Language?
 
-    private var visible: Bool { language.map { !$0.isFrench } ?? false }
-
     var body: some View {
-        Pill {
-            Text("\((language?.minimalIdentifier ?? "en").uppercased()) → FR")
-                .monospaced()
+        if let language, language.isFrench {
+            let active = app.englishRequested
+            Button { app.toggleEnglishTranslation() } label: {
+                Pill {
+                    Label("FR → EN", systemImage: active ? "character.bubble.fill" : "character.bubble")
+                        .monospaced()
+                        .foregroundStyle(active ? Color.black : Color.primary)
+                }
+                .background(Capsule().fill(active ? Color.white : .clear))
+                .contentShape(.capsule)
+            }
+            .buttonStyle(.plain)
+            .help(active ? "Masquer la traduction anglaise" : "Traduire les paroles en anglais")
+            .animation(.snappy, value: active)
+        } else {
+            Pill {
+                Text("\((language?.minimalIdentifier ?? "en").uppercased()) → FR")
+                    .monospaced()
+            }
+            .opacity(language == nil ? 0 : 1)
+            .animation(.easeInOut(duration: 0.25), value: language == nil)
         }
-        .opacity(visible ? 1 : 0)
-        .animation(.easeInOut(duration: 0.25), value: visible)
     }
 }
 
-/// Réglages et Quitter, dans une pilule.
+/// Mode éco, Réglages et Quitter, dans une pilule.
 private struct AppButtons: View {
+    @Environment(AppState.self) private var app
     @Environment(\.openSettings) private var openSettings
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         Pill {
             HStack(spacing: 12) {
+                Button {
+                    withAnimation(.snappy) { app.setEcoMode(!app.ecoMode) }
+                } label: {
+                    Image(systemName: app.ecoMode ? "leaf.fill" : "leaf")
+                        .foregroundStyle(app.ecoMode ? Color.green : Color.primary)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .help(app.ecoMode ? "Quitter le mode éco" : "Mode éco : met l'app en veille sans la fermer")
+                Divider().frame(height: 14)
                 Button {
                     dismiss()            // referme la bulle pour qu'elle ne cache pas les Réglages
                     openSettings()

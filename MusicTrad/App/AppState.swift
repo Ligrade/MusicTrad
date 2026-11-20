@@ -17,7 +17,7 @@ enum TranslationStatus: Equatable {
     case partial([String])       // en cours, lignes déjà traduites (les autres vides)
     case done([String])          // aligné sur Lyrics.lines
     case alreadyFrench
-    case needsDownload(Locale.Language)
+    case needsDownload(Locale.Language, Locale.Language)   // source, cible
     case failed(String)
 }
 
@@ -147,6 +147,15 @@ final class AppState {
         }
     }
 
+    /// Clic sur l'artiste : ouvre sa page dans Musique.
+    func openArtist() {
+        guard let track else { return }
+        Task {
+            if let url = await artworkService.artistURL(for: track), NSWorkspace.shared.open(url) { return }
+            await monitor.runner.revealCurrentTrack()
+        }
+    }
+
     /// Clic sur la pochette : ouvre l'album dans Musique.
     func openAlbum() {
         guard let track else { return }
@@ -237,8 +246,49 @@ final class AppState {
         artworkService = ArtworkService(runner: monitor.runner)
         nextTrackPredictor = NextTrackPredictor(runner: monitor.runner)
         monitor.onUpdate = { [weak self] state in self?.handle(state) }
-        monitor.start()
         monitor.interval = .milliseconds(1500)
+        if !ecoMode { startWork() }
+        // Nettoyage du cache au lancement puis une fois par jour.
+        maintenanceTask = Task {
+            while !Task.isCancelled {
+                _ = await CacheManager.shared.prune(limitMB: Preferences.cacheLimitMB,
+                                                    maxAgeDays: Preferences.cacheMaxAgeDays)
+                try? await Task.sleep(for: .seconds(24 * 3600))
+            }
+        }
+    }
+
+    // MARK: Mode éco
+
+    /// Mode éco : l'app reste dans la barre des menus mais ne fait plus rien
+    /// (plus de lecture de Musique, d'horloge, de traduction ni de préchargement).
+    private(set) var ecoMode = Preferences.ecoAtLaunch || UserDefaults.standard.bool(forKey: SettingsKey.ecoMode)
+
+    func setEcoMode(_ on: Bool) {
+        guard on != ecoMode else { return }
+        ecoMode = on
+        UserDefaults.standard.set(on, forKey: SettingsKey.ecoMode)
+        if on {
+            monitor.stop()
+            ticker?.cancel(); ticker = nil
+            loadTask?.cancel(); artworkTask?.cancel(); prefetchTask?.cancel()
+            currentTrackID = nil
+            playback = .stopped
+            lyricsStatus = .idle
+            translationStatus = .idle
+            sourceLanguage = nil
+            artwork = nil
+            artworkID = nil
+            currentLineIndex = nil
+            calibrating = false
+        } else {
+            startWork()
+        }
+    }
+
+    private func startWork() {
+        monitor.start()
+        ticker?.cancel()
         ticker = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
@@ -246,14 +296,6 @@ final class AppState {
                 // 20 fois par seconde seulement quand on regarde des paroles synchronisées.
                 let fast = self.visibleViews > 0 && self.playback.isPlaying && self.lyrics?.isSynced == true
                 try? await Task.sleep(for: .milliseconds(fast ? 50 : 500))
-            }
-        }
-        // Nettoyage du cache au lancement puis une fois par jour.
-        maintenanceTask = Task {
-            while !Task.isCancelled {
-                _ = await CacheManager.shared.prune(limitMB: Preferences.cacheLimitMB,
-                                                    maxAgeDays: Preferences.cacheMaxAgeDays)
-                try? await Task.sleep(for: .seconds(24 * 3600))
             }
         }
     }
@@ -292,6 +334,7 @@ final class AppState {
     }
 
     private func handle(_ state: PlaybackState) {
+        guard !ecoMode else { return }   // lecture partie juste avant le passage en éco
         updateAnchor(state, sameTrack: state.track?.id == currentTrackID)
         if state.withoutPosition != playback.withoutPosition { playback = state }
         if let o = favoriteOverride, state.track?.id != o.id || state.track?.isFavorited == o.value {
@@ -308,6 +351,7 @@ final class AppState {
         versions = []
         versionInfo = nil
         calibrating = false
+        englishRequested = false
         songOffset = state.track.map(Self.savedSongOffset) ?? 0
         artworkTask?.cancel()
         if let track = state.track {
@@ -411,20 +455,33 @@ final class AppState {
         case translated([String])
     }
 
+    /// Chanson en français : traduction en anglais seulement à la demande (pilule FR → EN).
+    private(set) var englishRequested = false
+
+    /// Langue vers laquelle on traduit le morceau en cours.
+    var translationTarget: Locale.Language {
+        sourceLanguage?.isFrench == true && englishRequested ? .english : .french
+    }
+
+    func toggleEnglishTranslation() {
+        englishRequested.toggle()
+        retranslate()
+    }
+
     private func translate(_ track: TrackInfo) async {
         guard let lyrics, !lyrics.isInstrumental else { return }
         let engine = self.engine
-        if let cached = translationCache.load([String].self, key: Self.translationKey(track, lyrics, engine)),
+        sourceLanguage = LanguageDetector.detect(lyrics.fullText)
+        let target = translationTarget
+        if let cached = translationCache.load([String].self, key: Self.translationKey(track, lyrics, engine, target)),
            cached.count == lyrics.lines.count {
-            sourceLanguage = LanguageDetector.detect(lyrics.fullText)
             translationStatus = .done(cached)
             return
         }
-        sourceLanguage = LanguageDetector.detect(lyrics.fullText)
-        if sourceLanguage?.isFrench != true { translationStatus = .translating }
+        if sourceLanguage.map({ $0.sameLanguage(as: target) }) != true { translationStatus = .translating }
 
         do {
-            let outcome = try await fetchTranslation(track, lyrics: lyrics, engine: engine) { [weak self] line, text in
+            let outcome = try await fetchTranslation(track, lyrics: lyrics, engine: engine, target: target) { [weak self] line, text in
                 self?.showPartial(trackID: track.id, line: line, text: text, count: lyrics.lines.count)
             }
             guard !Task.isCancelled, currentTrackID == track.id else { return }
@@ -433,7 +490,7 @@ final class AppState {
             case .translated(let lines): translationStatus = .done(lines)
             }
         } catch TranslationFailure.needsDownload(let lang) {
-            translationStatus = .needsDownload(lang)
+            translationStatus = .needsDownload(lang, target)
         } catch {
             guard !Task.isCancelled else { return }
             translationStatus = .failed(error.localizedDescription)
@@ -454,17 +511,19 @@ final class AppState {
         translationStatus = .partial(lines)
     }
 
-    private static func translationKey(_ t: TrackInfo, _ lyrics: Lyrics, _ engine: TranslationEngine) -> String {
-        "\(engine.rawValue)|fr|v2|\(lyricsKey(t))|\(lyrics.fullText.hashValueStable)"
+    private static func translationKey(_ t: TrackInfo, _ lyrics: Lyrics, _ engine: TranslationEngine,
+                                       _ target: Locale.Language = .french) -> String {
+        "\(engine.rawValue)|\(target.languageCode?.identifier ?? "fr")|v2|\(lyricsKey(t))|\(lyrics.fullText.hashValueStable)"
     }
 
     /// Traduction depuis le cache ou le moteur choisi, sans toucher à l'affichage.
     private func fetchTranslation(_ track: TrackInfo, lyrics: Lyrics, engine: TranslationEngine,
+                                  target: Locale.Language = .french,
                                   onLine: (@MainActor (Int, String) -> Void)? = nil) async throws -> TranslationOutcome {
         guard let source = LanguageDetector.detect(lyrics.fullText) else { throw TranslationFailure.languageNotDetected }
-        if source.isFrench { return .french }
+        if source.sameLanguage(as: target) { return .french }
 
-        let key = Self.translationKey(track, lyrics, engine)
+        let key = Self.translationKey(track, lyrics, engine, target)
         if let cached = translationCache.load([String].self, key: key), cached.count == lyrics.lines.count {
             return .translated(cached)
         }
@@ -476,14 +535,14 @@ final class AppState {
         let count = lyrics.lines.count
         let task = Task { [translationCache] () throws -> [String] in
             let translator: LyricsTranslator = engine == .deepl ? DeepLTranslator() : AppleTranslator()
-            let output = try await translator.translate(lines: input, from: source) { i, text in
+            let output = try await translator.translate(lines: input, from: source, to: target) { i, text in
                 guard let onLine, indices.indices.contains(i) else { return }
                 let line = indices[i]
                 Task { @MainActor in onLine(line, text) }
             }
             var aligned = Array(repeating: "", count: count)
             for (i, idx) in indices.enumerated() { aligned[idx] = output[i] }
-            translationCache.save(aligned, key: key, label: "\(track.artist) – \(track.title) [\(engine.rawValue), \(source.minimalIdentifier) → fr]")
+            translationCache.save(aligned, key: key, label: "\(track.artist) – \(track.title) [\(engine.rawValue), \(source.minimalIdentifier) → \(target.minimalIdentifier)]")
             return aligned
         }
         translationTasks[key] = task

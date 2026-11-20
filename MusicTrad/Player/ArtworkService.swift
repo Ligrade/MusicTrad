@@ -25,6 +25,34 @@ nonisolated struct ArtworkService: Sendable {
         let results: [Item]
     }
 
+    private struct ArtistResponse: Decodable {
+        struct Item: Decodable { let artistName: String?; let artistLinkUrl: String? }
+        let results: [Item]
+    }
+
+    /// Lien « music:// » vers la page de l'artiste dans l'app Musique (via iTunes Search).
+    func artistURL(for track: TrackInfo) async -> URL? {
+        // Artiste principal seulement (« A & B », « A feat. B » → A).
+        let main = track.artist
+            .components(separatedBy: CharacterSet(charactersIn: "&,")).first?
+            .components(separatedBy: " feat").first?
+            .trimmingCharacters(in: .whitespaces) ?? track.artist
+        var components = URLComponents(string: "https://itunes.apple.com/search")!
+        components.queryItems = [
+            URLQueryItem(name: "term", value: main),
+            URLQueryItem(name: "entity", value: "musicArtist"),
+            URLQueryItem(name: "limit", value: "5"),
+            URLQueryItem(name: "country", value: Locale.current.region?.identifier ?? "FR"),
+        ]
+        guard let url = components.url,
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let response = try? JSONDecoder().decode(ArtistResponse.self, from: data) else { return nil }
+        let wanted = main.normalizedForMatch
+        let item = response.results.first { ($0.artistName ?? "").normalizedForMatch == wanted } ?? response.results.first
+        guard let link = item?.artistLinkUrl else { return nil }
+        return URL(string: link.replacingOccurrences(of: "https://", with: "music://"))
+    }
+
     /// Lien « music:// » vers l'album du morceau dans l'app Musique (via iTunes Search).
     func albumURL(for track: TrackInfo) async -> URL? {
         var components = URLComponents(string: "https://itunes.apple.com/search")!

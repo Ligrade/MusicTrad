@@ -3,17 +3,17 @@ import Translation
 
 /// Traduction sur l'appareil via le framework Translation d'Apple.
 nonisolated struct AppleTranslator: LyricsTranslator {
-    @concurrent func translate(lines: [String], from source: Locale.Language,
+    @concurrent func translate(lines: [String], from source: Locale.Language, to target: Locale.Language,
                                progress: (@Sendable (Int, String) -> Void)?) async throws -> [String] {
-        let status = await LanguageAvailability().status(from: source, to: .french)
+        let status = await LanguageAvailability().status(from: source, to: target)
         switch status {
         case .installed: break
         case .supported: throw TranslationFailure.needsDownload(source)
-        case .unsupported: throw TranslationFailure.unsupportedPair(source.displayName)
-        @unknown default: throw TranslationFailure.unsupportedPair(source.displayName)
+        case .unsupported: throw TranslationFailure.unsupportedPair(source.displayName, target.displayName)
+        @unknown default: throw TranslationFailure.unsupportedPair(source.displayName, target.displayName)
         }
 
-        let session = TranslationSession(installedSource: source, target: .french)
+        let session = TranslationSession(installedSource: source, target: target)
         var out = Array(repeating: "", count: lines.count)
 
         // Strophes de 4 lignes : assez de contexte pour les phrases coupées, et les premières

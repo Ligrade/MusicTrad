@@ -22,9 +22,10 @@
 - **Vérifie la synchro** : un voyant indique si le timing des paroles colle au morceau, avec un recalage en un clic sur la ligne entendue, un décalage réglable par morceau et le choix d'une autre version ou source.
 - **Marque les passages instrumentaux** : ♪♪♪ qui s'allument au fil du solo, même quand le fichier de paroles ne les indique pas.
 - **Prépare le morceau suivant** à l'avance (playlist en cours, ou titre suivant de l'album via l'API publique Deezer).
-- **Ne traduit rien** si la chanson est déjà en français.
-- Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), une **étoile favori** synchronisée avec Musique, les commandes **⏮ ⏯ ⏭** et le choix de la **sortie AirPlay**.
+- **Chanson en français** : pas de traduction par défaut ; la pilule **FR → EN** la traduit en anglais à la demande (le français reste en blanc, l'anglais passe en rouge).
+- Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), l'**artiste** (un clic ouvre sa page dans Musique), une **étoile favori** synchronisée avec Musique, les commandes **⏮ ⏯ ⏭** et le choix de la **sortie AirPlay**.
 - Garde paroles et traductions en **cache**, avec un nettoyage automatique.
+- **Mode éco** (🍃 en haut à droite, actif au démarrage par défaut) : l'app reste dans la barre des menus mais ne consomme plus rien ; un bouton vert au centre la réactive. En marche, bulle fermée, elle tourne autour de 1 % de CPU.
 
 Aucune API de paroles d'Apple n'est utilisée (il n'en existe pas pour les développeurs), ni aucun jeton privé d'Apple Music.
 
@@ -67,7 +68,7 @@ tccutil reset AppleEvents fr.dynamicagence.MusicTrad
 
 | Onglet | Options |
 |---|---|
-| **Général** | Ouverture à la connexion, fenêtre flottante (désactivée par défaut, toujours au premier plan), accès à Musique |
+| **Général** | Ouverture à la connexion, démarrage en mode éco, fenêtre flottante (désactivée par défaut, toujours au premier plan), accès à Musique |
 | **Affichage** | Taille des paroles et de la traduction, paroles originales oui/non, flou des lignes inactives, aperçu, décalage de synchronisation |
 | **Traduction** | Moteur Apple ou DeepL, préparation du morceau suivant, clé DeepL avec test et consommation du mois |
 | **Cache** | Espace utilisé, taille maximale (50 Mo par défaut), suppression après 3 mois sans écoute, ouverture dans le Finder, vidage |

@@ -9,7 +9,7 @@ nonisolated struct DeepLTranslator: LyricsTranslator {
     ]
     private static let batchSize = 50   // limite DeepL par requête
 
-    func translate(lines: [String], from source: Locale.Language,
+    func translate(lines: [String], from source: Locale.Language, to target: Locale.Language,
                    progress: (@Sendable (Int, String) -> Void)?) async throws -> [String] {
         guard let key = KeychainStore.load(), !key.isEmpty else { throw TranslationFailure.missingAPIKey }
 
@@ -22,7 +22,8 @@ nonisolated struct DeepLTranslator: LyricsTranslator {
         var result: [String] = []
         for start in stride(from: 0, to: lines.count, by: Self.batchSize) {
             let chunk = Array(lines[start..<min(start + Self.batchSize, lines.count)])
-            result += try await request(chunk, key: key, host: host, sourceLang: sourceLang, context: context)
+            result += try await request(chunk, key: key, host: host, sourceLang: sourceLang,
+                                        targetLang: target.isFrench ? "FR" : "EN-US", context: context)
         }
         return result
     }
@@ -42,10 +43,10 @@ nonisolated struct DeepLTranslator: LyricsTranslator {
         return (json?["character_count"] as? Int ?? 0, json?["character_limit"] as? Int ?? 0)
     }
 
-    private func request(_ texts: [String], key: String, host: String, sourceLang: String?, context: String) async throws -> [String] {
+    private func request(_ texts: [String], key: String, host: String, sourceLang: String?, targetLang: String, context: String) async throws -> [String] {
         var body: [String: Any] = [
             "text": texts,
-            "target_lang": "FR",
+            "target_lang": targetLang,
             "context": context,
             "preserve_formatting": true,
             "split_sentences": "nonewlines",

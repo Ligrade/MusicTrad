@@ -30,6 +30,7 @@ struct SettingsView: View {
 private struct GeneralSettings: View {
     @AppStorage(SettingsKey.floatingWindowEnabled) private var floatingWindowEnabled = false
     @AppStorage(SettingsKey.openWindowAtLaunch) private var openWindowAtLaunch = false
+    @AppStorage(SettingsKey.ecoAtLaunch) private var ecoAtLaunch = true
     @Environment(\.dismissWindow) private var dismissWindow
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
@@ -48,6 +49,9 @@ private struct GeneralSettings: View {
                         }
                     }
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.orange) }
+                Toggle("Démarrer en mode éco", isOn: $ecoAtLaunch)
+                Text("L'app se lance en veille : clique sur le bouton vert pour la réactiver.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
 
             Section {
