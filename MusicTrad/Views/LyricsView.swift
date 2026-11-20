@@ -175,6 +175,7 @@ private struct BreakRow: View {
     @Environment(AppState.self) private var app
     let isCurrent: Bool
     let fontSize: Double
+    @State private var breathing = false
 
     var body: some View {
         let progress = isCurrent ? app.breakProgress : 0
@@ -190,9 +191,11 @@ private struct BreakRow: View {
                     .scaleEffect(1 + 0.12 * fill, anchor: .bottom)
             }
         }
-        .phaseAnimator([false, true]) { content, breathing in
-            content.scaleEffect(isCurrent && breathing ? 1.06 : 1, anchor: .leading)
-        } animation: { _ in .easeInOut(duration: 1.4) }
+        // Respiration seulement sur le passage en cours (une animation infinie par ligne coûterait du CPU).
+        .scaleEffect(breathing ? 1.06 : 1, anchor: .leading)
+        .animation(breathing ? .easeInOut(duration: 1.4).repeatForever() : .easeOut(duration: 0.3), value: breathing)
+        .onAppear { breathing = isCurrent }
+        .onChange(of: isCurrent) { _, now in breathing = now }
         .scaleEffect(1 + 0.3 * ending, anchor: .leading)
         .opacity(1 - ending)
         .animation(.easeOut(duration: 0.25), value: progress)

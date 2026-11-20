@@ -6,6 +6,8 @@ final class MusicPlayerMonitor {
     var onUpdate: ((PlaybackState) -> Void)?
     private var task: Task<Void, Never>?
     let runner = AppleScriptRunner()
+    /// 0,5 s quand les paroles sont affichées, plus lent en arrière-plan.
+    var interval: Duration = .milliseconds(500)
 
     func start() {
         guard task == nil else { return }
@@ -14,7 +16,7 @@ final class MusicPlayerMonitor {
                 guard let self else { return }
                 let state = await self.runner.poll()
                 self.onUpdate?(state)
-                try? await Task.sleep(for: .milliseconds(500))
+                try? await Task.sleep(for: self.interval)
             }
         }
     }

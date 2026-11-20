@@ -3,6 +3,7 @@ import SwiftUI
 /// Fenêtre toujours au premier plan, redimensionnable, fond semi-transparent.
 struct FloatingWindowView: View {
     static let id = "floating-lyrics"
+    @Environment(AppState.self) private var app
 
     var body: some View {
         VStack(spacing: 0) {
@@ -18,5 +19,7 @@ struct FloatingWindowView: View {
         .containerBackground(LyricsPalette.background, for: .window)
         .background(LyricsPalette.background)
         .preferredColorScheme(.dark)
+        .onAppear { app.viewAppeared() }
+        .onDisappear { app.viewDisappeared() }
     }
 }

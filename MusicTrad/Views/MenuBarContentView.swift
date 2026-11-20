@@ -28,5 +28,7 @@ struct MenuBarContentView: View {
         .frame(width: 560)
         .background(LyricsPalette.background)
         .preferredColorScheme(.dark)
+        .onAppear { app.viewAppeared() }
+        .onDisappear { app.viewDisappeared() }
     }
 }

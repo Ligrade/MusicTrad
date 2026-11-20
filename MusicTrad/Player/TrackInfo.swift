@@ -32,6 +32,16 @@ nonisolated enum PlaybackState: Equatable, Sendable {
         }
     }
 
+    /// Même état sans la position : la position change à chaque lecture et n'a pas besoin
+    /// de redessiner l'interface (la ligne en cours vient d'une horloge locale).
+    var withoutPosition: PlaybackState {
+        switch self {
+        case .playing(let t, _): .playing(t, position: 0)
+        case .paused(let t, _): .paused(t, position: 0)
+        default: self
+        }
+    }
+
     var isPlaying: Bool {
         if case .playing = self { return true }
         return false

@@ -71,6 +71,19 @@ final class AppState {
     /// Ligne chantée, recalculée 20 fois par seconde à partir d'une horloge locale
     /// (Musique n'est interrogée que toutes les 0,5 s). Légère avance réglable.
     private(set) var currentLineIndex: Int?
+    /// Nombre de vues de paroles ouvertes (bulle, fenêtre flottante) : sans elles, l'app ralentit.
+    @ObservationIgnored private var visibleViews = 0
+
+    func viewAppeared() {
+        visibleViews += 1
+        monitor.interval = .milliseconds(500)
+    }
+
+    func viewDisappeared() {
+        visibleViews = max(0, visibleViews - 1)
+        if visibleViews == 0 { monitor.interval = .milliseconds(1500) }
+    }
+
     /// Dernière position lue dans Musique et l'instant de la lecture.
     @ObservationIgnored private var anchor = (position: TimeInterval(0), at: Date(), playing: false)
     @ObservationIgnored private var ticker: Task<Void, Never>?
@@ -225,10 +238,14 @@ final class AppState {
         nextTrackPredictor = NextTrackPredictor(runner: monitor.runner)
         monitor.onUpdate = { [weak self] state in self?.handle(state) }
         monitor.start()
+        monitor.interval = .milliseconds(1500)
         ticker = Task { [weak self] in
             while !Task.isCancelled {
-                self?.refreshCurrentLine()
-                try? await Task.sleep(for: .milliseconds(50))
+                guard let self else { return }
+                self.refreshCurrentLine()
+                // 20 fois par seconde seulement quand on regarde des paroles synchronisées.
+                let fast = self.visibleViews > 0 && self.playback.isPlaying && self.lyrics?.isSynced == true
+                try? await Task.sleep(for: .milliseconds(fast ? 50 : 500))
             }
         }
         // Nettoyage du cache au lancement puis une fois par jour.
@@ -276,7 +293,7 @@ final class AppState {
 
     private func handle(_ state: PlaybackState) {
         updateAnchor(state, sameTrack: state.track?.id == currentTrackID)
-        playback = state
+        if state.withoutPosition != playback.withoutPosition { playback = state }
         if let o = favoriteOverride, state.track?.id != o.id || state.track?.isFavorited == o.value {
             favoriteOverride = nil   // Musique a confirmé (ou le morceau a changé)
         }

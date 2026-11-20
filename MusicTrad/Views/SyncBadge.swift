@@ -5,20 +5,30 @@ struct SyncBadge: View {
     @Environment(AppState.self) private var app
     @State private var showDetails = false
 
+    /// Morceau sans paroles (instrumental ou introuvable) : badge grisé, non cliquable.
+    private var noLyrics: Bool {
+        guard app.track != nil else { return false }
+        switch app.lyricsStatus {
+        case .notFound: return true
+        case .loaded(let l): return l.isInstrumental
+        default: return false
+        }
+    }
+
     var body: some View {
         let check = app.syncCheck
         Button { showDetails.toggle() } label: {
             Image(systemName: check.map(Self.symbol) ?? "checkmark.seal.fill")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(check.map(Self.color) ?? .secondary)
+                .foregroundStyle(check.map(Self.color) ?? Color.gray)
                 .contentTransition(.symbolEffect(.replace))
                 .frame(width: 34, height: 34)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
-        .opacity(check == nil ? 0 : 1)
+        .opacity(check != nil ? 1 : noLyrics ? 0.35 : 0)
         .disabled(check == nil)
-        .help("Vérifier la synchronisation des paroles")
+        .help(noLyrics ? "Pas de paroles pour ce morceau" : "Vérifier la synchronisation des paroles")
         .popover(isPresented: $showDetails, arrowEdge: .top) {
             SyncDetails(isPresented: $showDetails).environment(app)
         }
@@ -93,19 +103,22 @@ private struct SyncDetails: View {
             }
 
             Divider()
-            HStack {
-                Button {
-                    app.tryOtherVersion()
-                } label: {
-                    Label("Autre version / source", systemImage: "arrow.triangle.2.circlepath")
+            VStack(spacing: 6) {
+                HStack(spacing: 8) {
+                    Button {
+                        app.tryOtherVersion()
+                    } label: {
+                        Label("Autre version / source", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .disabled(app.searchingVersion)
+                    if app.searchingVersion { ProgressView().controlSize(.small) }
                 }
-                .disabled(app.searchingVersion)
-                if app.searchingVersion { ProgressView().controlSize(.small) }
-                Spacer()
                 if let info = app.versionInfo {
-                    Text("\(info.index) / \(info.count)").font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                    Text("Version \(info.index) sur \(info.count)")
+                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 }
             }
+            .frame(maxWidth: .infinity)
         }
         .padding(18)
         .frame(width: 340)
