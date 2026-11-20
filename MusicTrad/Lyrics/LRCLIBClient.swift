@@ -27,11 +27,25 @@ nonisolated struct LRCLIBClient: Sendable {
     }()
 
     /// Renvoie les paroles, ou nil si rien n'a été trouvé.
+    /// Si la réponse directe n'est pas synchronisée (ou que son timing ne colle pas à la durée),
+    /// on cherche une meilleure version parmi les autres enregistrements.
     func lyrics(for track: TrackInfo) async throws -> Lyrics? {
-        if let record = try await get(track), let lyrics = Self.convert(record) {
-            return lyrics
+        let direct = try await get(track).flatMap(Self.convert)
+        if let direct, direct.isInstrumental || direct.syncCheck(duration: track.duration) == .synced {
+            return direct
         }
-        return try await search(track)
+        let others = (try? await alternatives(for: track)) ?? []
+        if let good = others.first(where: { $0.syncCheck(duration: track.duration) == .synced }) {
+            return good
+        }
+        return direct ?? others.first
+    }
+
+    /// Toutes les versions trouvées, de la plus fiable à la moins fiable, sans doublons.
+    func alternatives(for track: TrackInfo) async throws -> [Lyrics] {
+        let ranked = try await search(track)
+        var seen = Set<String>()
+        return ranked.compactMap(Self.convert).filter { seen.insert($0.fullText).inserted }
     }
 
     private func get(_ track: TrackInfo) async throws -> Record? {
@@ -44,7 +58,7 @@ nonisolated struct LRCLIBClient: Sendable {
         return try await fetch(path: "get", items: items, as: Record.self)
     }
 
-    private func search(_ track: TrackInfo) async throws -> Lyrics? {
+    private func search(_ track: TrackInfo) async throws -> [Record] {
         let items = [
             URLQueryItem(name: "track_name", value: track.title),
             URLQueryItem(name: "artist_name", value: track.artist),
@@ -54,15 +68,24 @@ nonisolated struct LRCLIBClient: Sendable {
             let q = [URLQueryItem(name: "q", value: "\(track.artist) \(track.title)")]
             results = try await fetch(path: "search", items: q, as: [Record].self) ?? []
         }
-        // Durée proche (±10 s si connue), synchronisées en priorité.
+        // Durée proche (±10 s si connue).
         let candidates = results.filter { r in
             guard track.duration > 0, let d = r.duration else { return true }
             return abs(d - track.duration) <= 10
         }
-        let best = candidates.first { !($0.syncedLyrics ?? "").isEmpty }
-            ?? candidates.first { !($0.plainLyrics ?? "").isEmpty }
-            ?? candidates.first { $0.instrumental == true }
-        return best.flatMap(Self.convert)
+        // Classement : synchro cohérente > texte brut > synchro douteuse > instrumental,
+        // puis durée la plus proche (une autre version décale tout le timing).
+        func rank(_ r: Record) -> (Int, Double) {
+            let gap = track.duration > 0 ? abs((r.duration ?? .infinity) - track.duration) : 0
+            guard let lyrics = Self.convert(r) else { return (9, gap) }
+            if lyrics.isInstrumental { return (3, gap) }
+            switch lyrics.syncCheck(duration: track.duration) {
+            case .synced: return (0, gap)
+            case .unsynced: return (1, gap)
+            case .tooLong, .endsEarly: return (2, gap)
+            }
+        }
+        return candidates.sorted { rank($0) < rank($1) }
     }
 
     private func fetch<T: Decodable>(path: String, items: [URLQueryItem], as: T.Type) async throws -> T? {

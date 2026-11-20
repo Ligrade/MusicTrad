@@ -12,14 +12,26 @@ struct TrackHeader: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .top, spacing: 14) {
                 if let t = app.track {
-                    // Fondu de la pochette dans un cadre de taille fixe : aucun déplacement.
+                    // La nouvelle pochette pousse l'ancienne hors du cadre (⏭ par la droite, ⏮ par la gauche).
+                    // Seule la pochette s'anime ; le cadre, lui, ne bouge pas.
                     ZStack {
                         ArtworkView(image: app.artwork, size: artworkSize)
-                            .id(t.id)
-                            .transition(.opacity)
+                            .id(app.artworkID)
+                            .transition(.push(from: app.artworkFromLeading ? .leading : .trailing))
                     }
                     .frame(width: artworkSize, height: artworkSize)
-                    .animation(.easeInOut(duration: 0.3), value: t.id)
+                    .clipShape(.rect(cornerRadius: artworkSize * 0.14))
+                    .shadow(color: .black.opacity(app.playback.isPlaying ? 0.5 : 0.25), radius: 6, y: 3)
+                    // En pause : grise et recule légèrement, comme dans Musique.
+                    .saturation(app.playback.isPlaying ? 1 : 0)
+                    .brightness(app.playback.isPlaying ? 0 : -0.08)
+                    .scaleEffect(app.playback.isPlaying ? 1 : 0.86)
+                    .animation(.spring(response: 0.45, dampingFraction: 0.72), value: app.playback.isPlaying)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.86), value: app.artworkID)
+                    .contentShape(.rect)
+                    .onTapGesture { app.openAlbum() }
+                    .pointerStyle(.link)
+                    .help("Ouvrir l'album dans Musique")
 
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 8) {
@@ -76,11 +88,13 @@ private struct LanguagePill: View {
 /// Réglages et Quitter, dans une pilule.
 private struct AppButtons: View {
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         Pill {
             HStack(spacing: 12) {
                 Button {
+                    dismiss()            // referme la bulle pour qu'elle ne cache pas les Réglages
                     openSettings()
                     NSApp.activate()
                 } label: { Image(systemName: "gearshape") }
@@ -108,7 +122,6 @@ private struct ArtworkView: View {
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fill)
-                    .transition(.opacity)
             } else {
                 Image(systemName: "music.note")
                     .font(.system(size: size * 0.4, weight: .semibold))
@@ -117,8 +130,6 @@ private struct ArtworkView: View {
         }
         .frame(width: size, height: size)
         .clipShape(.rect(cornerRadius: size * 0.14))
-        .shadow(color: .black.opacity(0.5), radius: 6, y: 3)
-        .animation(.easeInOut(duration: 0.3), value: image != nil)
     }
 }
 

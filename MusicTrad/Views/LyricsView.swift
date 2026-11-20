@@ -11,7 +11,7 @@ struct LyricsView: View {
 
     var body: some View {
         content
-            .animation(.easeInOut(duration: 0.35), value: app.track?.id)
+            .animation(.easeInOut(duration: 0.25), value: app.track?.id)
             .animation(.easeInOut(duration: 0.35), value: app.lyricsStatus)
     }
 
@@ -72,7 +72,8 @@ struct LyricsView: View {
                             onlyTranslation: onlyTranslation,
                             fontSize: fontSize,
                             translationScale: translationScale,
-                            blurInactive: blurInactive
+                            blurInactive: blurInactive,
+                            onTap: line.time == nil ? nil : { app.seek(to: line) }
                         )
                         .id(line.id)
                     }
@@ -118,6 +119,9 @@ private struct LineRow: View {
     let fontSize: Double
     let translationScale: Double
     let blurInactive: Bool
+    /// Paroles synchronisées : un clic replace Musique au début de la ligne.
+    var onTap: (() -> Void)?
+    @State private var hovering = false
 
     private var hasTranslation: Bool {
         guard let translation else { return false }
@@ -129,7 +133,7 @@ private struct LineRow: View {
             if original.trimmingCharacters(in: .whitespaces).isEmpty {
                 Text("♪")
                     .font(.system(size: fontSize, weight: .semibold))
-                    .foregroundStyle(LyricsPalette.original)
+                    .foregroundStyle(LyricsPalette.translation)
             } else {
                 VStack(alignment: .leading, spacing: fontSize * 0.15) {
                     if onlyTranslation, hasTranslation, let translation {
@@ -157,7 +161,12 @@ private struct LineRow: View {
         .scaleEffect(dimmed && !isCurrent ? 0.97 : 1, anchor: .leading)
         .animation(.spring(response: 0.55, dampingFraction: 0.85), value: isCurrent)
         .animation(.easeOut(duration: 0.4), value: hasTranslation)
-        .textSelection(.enabled)
+        .brightness(hovering && !isCurrent ? 0.12 : 0)
+        .contentShape(.rect)
+        .onTapGesture { onTap?() }
+        .onHover { hovering = onTap != nil && $0 }
+        .pointerStyle(onTap == nil ? nil : .link)
+        .animation(.easeOut(duration: 0.15), value: hovering)
     }
 }
 

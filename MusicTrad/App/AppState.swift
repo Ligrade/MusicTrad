@@ -28,6 +28,11 @@ final class AppState {
     private(set) var translationStatus: TranslationStatus = .idle
     private(set) var sourceLanguage: Locale.Language?
     private(set) var artwork: NSImage?
+    /// Morceau auquel appartient la pochette affichée : la pochette ne change (et ne s'anime)
+    /// qu'une fois la nouvelle chargée, pour qu'elle prenne directement la place de l'ancienne.
+    private(set) var artworkID: String?
+    /// Sens de l'animation de la pochette : vrai après ⏮ (arrive par la gauche).
+    private(set) var artworkFromLeading = false
     /// Valeur affichée tout de suite après un clic, en attendant que Musique la confirme.
     private var favoriteOverride: (id: String, value: Bool)?
     private(set) var favoriteError: String?
@@ -60,8 +65,105 @@ final class AppState {
         return nil
     }
 
-    /// Légère avance pour que la ligne s'allume au moment où elle est chantée.
-    var currentLineIndex: Int? { lyrics?.lineIndex(at: playback.position + Preferences.syncOffset) }
+    /// Ligne chantée, recalculée 20 fois par seconde à partir d'une horloge locale
+    /// (Musique n'est interrogée que toutes les 0,5 s). Légère avance réglable.
+    private(set) var currentLineIndex: Int?
+    /// Dernière position lue dans Musique et l'instant de la lecture.
+    @ObservationIgnored private var anchor = (position: TimeInterval(0), at: Date(), playing: false)
+    @ObservationIgnored private var ticker: Task<Void, Never>?
+
+    /// Position estimée maintenant : dernière position lue + temps écoulé depuis.
+    private var livePosition: TimeInterval {
+        anchor.playing ? anchor.position + Date().timeIntervalSince(anchor.at) : anchor.position
+    }
+
+    @ObservationIgnored private var seekGuardUntil = Date.distantPast
+
+    private func updateAnchor(_ state: PlaybackState, sameTrack: Bool) {
+        let polled = state.position
+        // Juste après un saut, une lecture partie avant le saut ne doit pas ramener en arrière.
+        if sameTrack, Date() < seekGuardUntil, abs(polled - livePosition) > 1 { return }
+        if sameTrack, state.isPlaying, anchor.playing {
+            // Petit retard dû à la latence d'AppleScript : on ne recule pas pour si peu.
+            let estimate = livePosition
+            if polled < estimate, estimate - polled < 0.25 { return }
+        }
+        anchor = (polled, Date(), state.isPlaying)
+    }
+
+    private func refreshCurrentLine() {
+        let index = lyrics?.lineIndex(at: livePosition + Preferences.syncOffset + songOffset)
+        if index != currentLineIndex { currentLineIndex = index }
+    }
+
+    /// Clic sur la pochette : ouvre l'album dans Musique.
+    func openAlbum() {
+        guard let track else { return }
+        Task {
+            if let url = await artworkService.albumURL(for: track), NSWorkspace.shared.open(url) { return }
+            await monitor.runner.revealCurrentTrack()
+        }
+    }
+
+    /// Clic sur une ligne : Musique repart au début de ce passage.
+    func seek(to line: LyricLine) {
+        guard let time = line.time, track != nil else { return }
+        let target = max(0, time - songOffset)
+        anchor = (target, Date(), anchor.playing)
+        seekGuardUntil = Date().addingTimeInterval(1.5)
+        refreshCurrentLine()
+        monitor.seek(to: target)
+    }
+
+    // MARK: Vérification de la synchro
+
+    /// Le timing des paroles colle-t-il à la durée du morceau ?
+    var syncCheck: SyncCheck? {
+        guard let track, let lyrics, !lyrics.isInstrumental else { return nil }
+        return lyrics.syncCheck(duration: track.duration)
+    }
+
+    /// Décalage propre au morceau en cours (s'ajoute au réglage général).
+    private(set) var songOffset: Double = 0
+    private(set) var searchingVersion = false
+    /// « version 2 sur 5 » après avoir essayé une autre version.
+    private(set) var versionInfo: (index: Int, count: Int)?
+    @ObservationIgnored private var versions: [Lyrics] = []
+    @ObservationIgnored private var refreshedKeys: Set<String> = []
+    private static let songOffsetsKey = "songSyncOffsets"
+
+    func setSongOffset(_ value: Double) {
+        guard let track else { return }
+        songOffset = (value * 10).rounded() / 10
+        var all = UserDefaults.standard.dictionary(forKey: Self.songOffsetsKey) as? [String: Double] ?? [:]
+        all[Self.lyricsKey(track)] = songOffset == 0 ? nil : songOffset
+        UserDefaults.standard.set(all, forKey: Self.songOffsetsKey)
+    }
+
+    private static func savedSongOffset(_ track: TrackInfo) -> Double {
+        (UserDefaults.standard.dictionary(forKey: songOffsetsKey) as? [String: Double])?[lyricsKey(track)] ?? 0
+    }
+
+    /// Passe à la version suivante des paroles sur LRCLIB (album, radio edit, live…).
+    func tryOtherVersion() {
+        guard let track, let current = lyrics, !searchingVersion else { return }
+        searchingVersion = true
+        Task {
+            defer { searchingVersion = false }
+            if versions.isEmpty {
+                versions = (try? await lrclib.alternatives(for: track)) ?? []
+            }
+            guard currentTrackID == track.id, !versions.isEmpty else { return }
+            let start = versions.firstIndex { $0.fullText == current.fullText } ?? -1
+            let next = (start + 1) % versions.count
+            let chosen = versions[next]
+            versionInfo = (next + 1, versions.count)
+            guard chosen.fullText != current.fullText else { return }
+            lyricsCache.save(chosen, key: Self.lyricsKey(track), label: "\(track.artist) – \(track.title)")
+            lyricsStatus = .loaded(chosen)
+            retranslate()
+        }
+    }
 
     var engine: TranslationEngine {
         TranslationEngine(rawValue: UserDefaults.standard.string(forKey: SettingsKey.engine) ?? "") ?? .apple
@@ -72,6 +174,12 @@ final class AppState {
         nextTrackPredictor = NextTrackPredictor(runner: monitor.runner)
         monitor.onUpdate = { [weak self] state in self?.handle(state) }
         monitor.start()
+        ticker = Task { [weak self] in
+            while !Task.isCancelled {
+                self?.refreshCurrentLine()
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
         // Nettoyage du cache au lancement puis une fois par jour.
         maintenanceTask = Task {
             while !Task.isCancelled {
@@ -116,6 +224,7 @@ final class AppState {
     }
 
     private func handle(_ state: PlaybackState) {
+        updateAnchor(state, sameTrack: state.track?.id == currentTrackID)
         playback = state
         if let o = favoriteOverride, state.track?.id != o.id || state.track?.isFavorited == o.value {
             favoriteOverride = nil   // Musique a confirmé (ou le morceau a changé)
@@ -128,6 +237,9 @@ final class AppState {
         lyricsStatus = .idle
         translationStatus = .idle
         sourceLanguage = nil
+        versions = []
+        versionInfo = nil
+        songOffset = state.track.map(Self.savedSongOffset) ?? 0
         artworkTask?.cancel()
         if let track = state.track {
             loadTask = Task { await load(track) }
@@ -135,21 +247,34 @@ final class AppState {
                 let data = await artworkService.artwork(for: track)
                 guard !Task.isCancelled, currentTrackID == track.id else { return }
                 artwork = data.flatMap(NSImage.init(data:))
+                artworkID = track.id
+                // Après l'animation, retour au sens normal (enchaînement auto = par la droite).
+                try? await Task.sleep(for: .milliseconds(700))
+                if !Task.isCancelled { artworkFromLeading = false }
             }
         } else {
             artwork = nil
+            artworkID = nil
         }
     }
 
     // MARK: Lecture
 
-    func send(_ command: PlayerCommand) { monitor.send(command) }
+    func send(_ command: PlayerCommand) {
+        // Le sens est fixé AVANT le changement de pochette : l'ancienne pochette doit déjà
+        // porter la bonne transition au moment où elle sort.
+        if command == .previous { artworkFromLeading = true }
+        if command == .next { artworkFromLeading = false }
+        monitor.send(command)
+    }
 
     // MARK: Paroles
 
     private func load(_ track: TrackInfo) async {
         if let cached = lyricsCache.load(Lyrics.self, key: Self.lyricsKey(track)) {
             lyricsStatus = .loaded(cached)
+            await refreshIfDoubtful(cached, track: track)
+            guard !Task.isCancelled else { return }
         } else {
             lyricsStatus = .loading
             do {
@@ -166,6 +291,19 @@ final class AppState {
         await translate(track)
         guard !Task.isCancelled else { return }
         prefetchNext(after: track)
+    }
+
+    /// Paroles en cache non synchronisées ou au timing douteux : une fois par session,
+    /// on regarde si LRCLIB a mieux (cas des caches faits avant la vérification).
+    private func refreshIfDoubtful(_ cached: Lyrics, track: TrackInfo) async {
+        let key = Self.lyricsKey(track)
+        guard !cached.isInstrumental, cached.syncCheck(duration: track.duration) != .synced,
+              refreshedKeys.insert(key).inserted,
+              let fresh = try? await lrclib.lyrics(for: track),
+              fresh.syncCheck(duration: track.duration) == .synced,
+              !Task.isCancelled, currentTrackID == track.id else { return }
+        lyricsCache.save(fresh, key: key, label: "\(track.artist) – \(track.title)")
+        lyricsStatus = .loaded(fresh)
     }
 
     /// Clé indépendante de l'artiste et de la durée, pour que le morceau préchargé
@@ -232,7 +370,7 @@ final class AppState {
     }
 
     private static func translationKey(_ t: TrackInfo, _ lyrics: Lyrics, _ engine: TranslationEngine) -> String {
-        "\(engine.rawValue)|fr|\(lyricsKey(t))|\(lyrics.fullText.hashValueStable)"
+        "\(engine.rawValue)|fr|v2|\(lyricsKey(t))|\(lyrics.fullText.hashValueStable)"
     }
 
     /// Traduction depuis le cache ou le moteur choisi, sans toucher à l'affichage.

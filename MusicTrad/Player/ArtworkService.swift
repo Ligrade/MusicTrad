@@ -16,8 +16,34 @@ nonisolated struct ArtworkService: Sendable {
     }
 
     private struct SearchResponse: Decodable {
-        struct Item: Decodable { let artistName: String?; let artworkUrl100: String? }
+        struct Item: Decodable {
+            let artistName: String?
+            let collectionName: String?
+            let artworkUrl100: String?
+            let collectionViewUrl: String?
+        }
         let results: [Item]
+    }
+
+    /// Lien « music:// » vers l'album du morceau dans l'app Musique (via iTunes Search).
+    func albumURL(for track: TrackInfo) async -> URL? {
+        var components = URLComponents(string: "https://itunes.apple.com/search")!
+        components.queryItems = [
+            URLQueryItem(name: "term", value: "\(track.artist) \(track.title)"),
+            URLQueryItem(name: "entity", value: "song"),
+            URLQueryItem(name: "limit", value: "10"),
+            URLQueryItem(name: "country", value: Locale.current.region?.identifier ?? "FR"),
+        ]
+        guard let url = components.url,
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let response = try? JSONDecoder().decode(SearchResponse.self, from: data) else { return nil }
+        let artist = track.artist.normalizedForMatch
+        let album = track.album.normalizedForMatch
+        let sameArtist = response.results.filter { ($0.artistName ?? "").normalizedForMatch == artist }
+        let item = sameArtist.first { ($0.collectionName ?? "").normalizedForMatch == album }
+            ?? sameArtist.first ?? response.results.first
+        guard let link = item?.collectionViewUrl else { return nil }
+        return URL(string: link.replacingOccurrences(of: "https://", with: "music://"))
     }
 
     private func searchITunes(_ track: TrackInfo) async -> Data? {

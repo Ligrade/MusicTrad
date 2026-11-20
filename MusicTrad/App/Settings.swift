@@ -29,7 +29,7 @@ enum SettingsKey {
 enum SettingsDefault {
     static let fontSize: Double = 24
     static let translationScale: Double = 0.85
-    static let syncOffset: Double = 0.3
+    static let syncOffset: Double = 0.2
 }
 
 /// Lecture des réglages hors des vues (valeurs par défaut si jamais modifiés).

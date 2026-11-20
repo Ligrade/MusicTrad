@@ -19,8 +19,8 @@ targets:
       path: MusicTrad/Info.plist
       properties:
         CFBundleDisplayName: MusicTrad
-        CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "1"
+        CFBundleShortVersionString: "1.1"
+        CFBundleVersion: "2"
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.music
         NSAppleEventsUsageDescription: "MusicTrad lit le titre et la position de lecture dans Musique pour afficher et traduire les paroles."

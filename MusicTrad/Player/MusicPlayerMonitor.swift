@@ -34,6 +34,17 @@ final class MusicPlayerMonitor {
     }
 }
 
+extension MusicPlayerMonitor {
+    /// Saute à une position puis relit l'état aussitôt.
+    func seek(to seconds: TimeInterval) {
+        Task { [weak self] in
+            guard let self else { return }
+            await self.runner.seek(to: seconds)
+            self.onUpdate?(await self.runner.poll())
+        }
+    }
+}
+
 nonisolated enum PlayerCommand: String, Sendable {
     case previous = "back track"     // comme le bouton ⏮ de Musique : début du morceau, puis précédent
     case playPause = "playpause"
@@ -83,6 +94,28 @@ nonisolated final class AppleScriptRunner: @unchecked Sendable {
                     return s
                 }()
                 script.executeAndReturnError(nil)
+                cont.resume()
+            }
+        }
+    }
+
+    /// Montre le morceau en cours dans Musique (solution de secours si l'album n'est pas trouvé).
+    func revealCurrentTrack() async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            queue.async {
+                NSAppleScript(source: "tell application \"Music\"\nreveal current track\nactivate\nend tell")?
+                    .executeAndReturnError(nil)
+                cont.resume()
+            }
+        }
+    }
+
+    /// Place la lecture de Musique à une position donnée (en secondes).
+    func seek(to seconds: TimeInterval) async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            queue.async {
+                let source = String(format: "tell application \"Music\" to set player position to %.2f", max(0, seconds))
+                NSAppleScript(source: source)?.executeAndReturnError(nil)
                 cont.resume()
             }
         }

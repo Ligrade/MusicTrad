@@ -16,6 +16,10 @@ struct PlaybackControls: View {
         }
         .disabled(!available)
         .opacity(available ? 1 : 0.35)
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .trailing) {
+            SyncBadge().padding(.trailing, 18)
+        }
     }
 
     private func button(_ symbol: String, help: String, scale: CGFloat, action: @escaping () -> Void) -> some View {

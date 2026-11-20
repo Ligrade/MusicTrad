@@ -13,6 +13,19 @@ nonisolated struct AppleTranslator: LyricsTranslator {
         }
 
         let session = TranslationSession(installedSource: source, target: .french)
+
+        // 1. Tout le morceau d'un bloc : chaque ligne est traduite avec le sens des voisines
+        //    (phrases coupées sur deux lignes, pronoms, expressions). Gardé si les lignes correspondent.
+        if lines.count > 1,
+           let whole = try? await session.translate(lines.joined(separator: "\n")) {
+            let out = whole.targetText
+                .components(separatedBy: "\n")          // Apple double parfois les retours à la ligne
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            if out.count == lines.count { return out }
+        }
+
+        // 2. Sinon ligne par ligne.
         let requests = lines.enumerated().map {
             TranslationSession.Request(sourceText: $0.element, clientIdentifier: String($0.offset))
         }
