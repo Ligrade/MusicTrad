@@ -1,0 +1,13 @@
+# Compilation
+build/
+DerivedData/
+
+# Xcode (données perso)
+xcuserdata/
+*.xcuserstate
+
+# macOS
+.DS_Store
+
+# Réglages locaux Claude Code
+.claude/settings.local.json

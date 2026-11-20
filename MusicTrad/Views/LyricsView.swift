@@ -1,0 +1,207 @@
+import SwiftUI
+import Translation
+
+/// Paroles avec traduction, ligne en cours mise en avant et défilement automatique.
+struct LyricsView: View {
+    @Environment(AppState.self) private var app
+    @AppStorage(SettingsKey.fontSize) private var fontSize = SettingsDefault.fontSize
+    @AppStorage(SettingsKey.showOriginal) private var showOriginal = true
+    @AppStorage(SettingsKey.translationScale) private var translationScale = SettingsDefault.translationScale
+    @AppStorage(SettingsKey.blurInactive) private var blurInactive = true
+
+    var body: some View {
+        content
+            .animation(.easeInOut(duration: 0.35), value: app.track?.id)
+            .animation(.easeInOut(duration: 0.35), value: app.lyricsStatus)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch app.playback {
+        case .musicNotRunning:
+            message("music.note", "Musique n'est pas ouverte", "Lance l'app Musique et un morceau.")
+        case .stopped:
+            message("pause.circle", "Aucune musique en lecture", "Lance un morceau dans Musique.")
+        case .notAuthorized:
+            message("lock", "Accès à Musique refusé",
+                    "Autorise MusicTrad dans Réglages Système › Confidentialité et sécurité › Automatisation.")
+        case .error(let msg):
+            message("exclamationmark.triangle", "Erreur", msg)
+        case .playing, .paused:
+            lyricsContent
+        }
+    }
+
+    @ViewBuilder
+    private var lyricsContent: some View {
+        switch app.lyricsStatus {
+        case .idle, .loading:
+            VStack { ProgressView(); Text("Recherche des paroles…").foregroundStyle(.secondary) }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .notFound:
+            message("text.badge.xmark", "Aucune parole trouvée", "LRCLIB n'a pas de paroles pour ce morceau.")
+        case .failed(let msg):
+            message("wifi.exclamationmark", "Paroles indisponibles", msg)
+        case .loaded(let lyrics) where lyrics.isInstrumental:
+            message("pianokeys", "Morceau instrumental", "Pas de paroles à afficher.")
+        case .loaded(let lyrics):
+            VStack(spacing: 0) {
+                TranslationBanner()
+                lines(lyrics)
+            }
+            .id(app.track?.id)
+            .transition(.opacity)
+        }
+    }
+
+    private func lines(_ lyrics: Lyrics) -> some View {
+        let current = app.currentLineIndex
+        let translations = app.translations
+        let onlyTranslation = !showOriginal && translations != nil
+
+        return ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: fontSize * 0.7) {
+                    ForEach(lyrics.lines) { line in
+                        LineRow(
+                            original: line.text,
+                            translation: translations?[safe: line.id],
+                            isCurrent: line.id == current,
+                            isPast: lyrics.isSynced && current.map { line.id < $0 } == true,
+                            dimmed: lyrics.isSynced && current != nil,
+                            onlyTranslation: onlyTranslation,
+                            fontSize: fontSize,
+                            translationScale: translationScale,
+                            blurInactive: blurInactive
+                        )
+                        .id(line.id)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 60)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .onChange(of: current) { _, new in
+                guard let new else { return }
+                withAnimation(.spring(response: 0.7, dampingFraction: 0.9)) {
+                    proxy.scrollTo(new, anchor: UnitPoint(x: 0, y: 0.4))
+                }
+            }
+            .onAppear {
+                if let current { proxy.scrollTo(current, anchor: UnitPoint(x: 0, y: 0.4)) }
+            }
+        }
+    }
+
+    private func message(_ icon: String, _ title: String, _ detail: String) -> some View {
+        ContentUnavailableView(title, systemImage: icon, description: Text(detail))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+enum LyricsPalette {
+    /// Rouge de l'icône.
+    static let original = Color(red: 1.0, green: 0.27, blue: 0.36)
+    static let translation = Color.white
+    static let background = Color.black
+}
+
+/// Une ligne de paroles. La graisse ne change jamais : la mise en avant passe par
+/// l'opacité, l'échelle et le flou, qui ne modifient pas la mise en page (pas de saut de ligne).
+private struct LineRow: View {
+    let original: String
+    let translation: String?
+    let isCurrent: Bool
+    let isPast: Bool
+    let dimmed: Bool
+    let onlyTranslation: Bool
+    let fontSize: Double
+    let translationScale: Double
+    let blurInactive: Bool
+
+    private var hasTranslation: Bool {
+        guard let translation else { return false }
+        return !translation.isEmpty && translation != original
+    }
+
+    var body: some View {
+        Group {
+            if original.trimmingCharacters(in: .whitespaces).isEmpty {
+                Text("♪")
+                    .font(.system(size: fontSize, weight: .semibold))
+                    .foregroundStyle(LyricsPalette.original)
+            } else {
+                VStack(alignment: .leading, spacing: fontSize * 0.15) {
+                    if onlyTranslation, hasTranslation, let translation {
+                        Text(translation)
+                            .font(.system(size: fontSize, weight: .bold))
+                            .foregroundStyle(LyricsPalette.translation)
+                    } else {
+                        Text(original)
+                            .font(.system(size: fontSize, weight: .bold))
+                            .foregroundStyle(LyricsPalette.original)
+                        if hasTranslation, let translation {
+                            Text(translation)
+                                .font(.system(size: fontSize * translationScale, weight: .semibold))
+                                .foregroundStyle(LyricsPalette.translation)
+                                .transition(.opacity.combined(with: .offset(y: 6)))
+                        }
+                    }
+                }
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .opacity(dimmed && !isCurrent ? (isPast ? 0.28 : 0.42) : 1)
+        .blur(radius: blurInactive && dimmed && !isCurrent ? 0.8 : 0)
+        .scaleEffect(dimmed && !isCurrent ? 0.97 : 1, anchor: .leading)
+        .animation(.spring(response: 0.55, dampingFraction: 0.85), value: isCurrent)
+        .animation(.easeOut(duration: 0.4), value: hasTranslation)
+        .textSelection(.enabled)
+    }
+}
+
+/// État de la traduction au-dessus des paroles.
+private struct TranslationBanner: View {
+    @Environment(AppState.self) private var app
+    @State private var downloadConfig: TranslationSession.Configuration?
+
+    var body: some View {
+        Group {
+            switch app.translationStatus {
+            case .translating:
+                HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Traduction en cours…") }
+            case .alreadyFrench:
+                Label("Chanson en français : pas de traduction", systemImage: "checkmark.circle")
+            case .needsDownload(let lang):
+                HStack {
+                    Text("Langue « \(lang.displayName) » à télécharger.")
+                    Button("Télécharger") {
+                        downloadConfig = .init(source: lang, target: .french)
+                    }
+                }
+            case .failed(let msg):
+                Label(msg, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+            case .idle, .done:
+                EmptyView()
+            }
+        }
+        .font(.body)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .frame(height: 30)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 6)
+        .translationTask(downloadConfig) { session in
+            // La session n'est utilisée qu'ici : pas de partage réel entre threads.
+            nonisolated(unsafe) let session = session
+            try? await session.prepareTranslation()
+            downloadConfig = nil
+            app.retranslate()
+        }
+    }
+}
+
+extension Array {
+    subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
+}
