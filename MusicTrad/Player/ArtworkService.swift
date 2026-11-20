@@ -5,9 +5,18 @@ import Foundation
 nonisolated struct ArtworkService: Sendable {
     let runner: AppleScriptRunner
     private let cache = DiskCache(folder: "artwork")
+    private let memory = LastArtwork()
 
     func artwork(for track: TrackInfo) async -> Data? {
-        if let data = await runner.artworkData(), NSImage(data: data) != nil { return data }
+        let album = "\(track.artist)|\(track.album)".normalizedForMatch
+        if let data = await runner.artworkData(), NSImage(data: data) != nil {
+            // Pour les morceaux en streaming (« URL track »), Musique renvoie parfois encore la
+            // pochette du morceau précédent : mêmes octets pour un autre album → on l'ignore.
+            if memory.isStale(data, album: album) == false {
+                memory.remember(data, album: album)
+                return data
+            }
+        }
         let key = "\(track.artist)|\(track.album)"
         if let cached = cache.load(Data.self, key: key) { return cached }
         guard let data = await searchITunes(track) else { return nil }
@@ -84,12 +93,30 @@ nonisolated struct ArtworkService: Sendable {
         guard let url = components.url,
               let (data, _) = try? await URLSession.shared.data(from: url),
               let response = try? JSONDecoder().decode(SearchResponse.self, from: data) else { return nil }
-        let artist = track.artist.lowercased()
-        let item = response.results.first { ($0.artistName ?? "").lowercased() == artist } ?? response.results.first
+        let artist = track.artist.normalizedForMatch
+        let album = track.album.normalizedForMatch
+        let sameArtist = response.results.filter { ($0.artistName ?? "").normalizedForMatch == artist }
+        let item = sameArtist.first { ($0.collectionName ?? "").normalizedForMatch == album }
+            ?? sameArtist.first ?? response.results.first
         guard let small = item?.artworkUrl100,
               let big = URL(string: small.replacingOccurrences(of: "100x100bb", with: "600x600bb")),
               let (image, _) = try? await URLSession.shared.data(from: big),
               NSImage(data: image) != nil else { return nil }
         return image
+    }
+}
+
+/// Dernière pochette acceptée venant de Musique, pour repérer une pochette restée bloquée.
+nonisolated final class LastArtwork: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data: Data?
+    private var album: String?
+
+    func isStale(_ new: Data, album newAlbum: String) -> Bool {
+        lock.withLock { data == new && album != newAlbum }
+    }
+
+    func remember(_ new: Data, album newAlbum: String) {
+        lock.withLock { data = new; album = newAlbum }
     }
 }

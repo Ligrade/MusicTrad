@@ -31,6 +31,7 @@ private struct GeneralSettings: View {
     @AppStorage(SettingsKey.floatingWindowEnabled) private var floatingWindowEnabled = false
     @AppStorage(SettingsKey.openWindowAtLaunch) private var openWindowAtLaunch = false
     @AppStorage(SettingsKey.ecoAtLaunch) private var ecoAtLaunch = true
+    @AppStorage(SettingsKey.myStationURL) private var myStationURL = ""
     @Environment(\.dismissWindow) private var dismissWindow
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError: String?
@@ -52,6 +53,15 @@ private struct GeneralSettings: View {
                 Toggle("Démarrer en mode éco", isOn: $ecoAtLaunch)
                 Text("L'app se lance en veille : clique sur le bouton vert pour la réactiver.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+
+            Section {
+                TextField("Lien", text: $myStationURL, prompt: Text("https://music.apple.com/…/station/…"))
+                    .textFieldStyle(.roundedBorder)
+            } header: {
+                Text("Ma station")
+            } footer: {
+                Text("Quand rien ne joue, le bouton « Ma station » ouvre ta station dans Musique. Pour le lien : dans Musique, clic droit (ou ⋯) sur « Station de : … » › Partager › Copier le lien, puis colle-le ici.")
             }
 
             Section {

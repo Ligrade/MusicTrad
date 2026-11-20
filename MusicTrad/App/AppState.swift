@@ -147,6 +147,34 @@ final class AppState {
         }
     }
 
+    // MARK: Lancer Musique
+
+    /// Musique fermée : bouton « Ouvrir Musique ».
+    func openMusic() {
+        NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/System/Applications/Music.app"),
+                                           configuration: NSWorkspace.OpenConfiguration())
+    }
+
+    /// Lien de « Ma station » collé dans les Réglages (Musique ne permet pas de la lancer par script).
+    var myStationLink: URL? {
+        guard let raw = UserDefaults.standard.string(forKey: SettingsKey.myStationURL)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              raw.contains("music.apple.com"), raw.contains("/station/") else { return nil }
+        return URL(string: raw.replacingOccurrences(of: "https://", with: "music://"))
+    }
+
+    /// Rien en lecture : ouvre « Ma station » grâce au lien enregistré dans les Réglages
+    /// (Musique ne donne aucun autre moyen d'atteindre la station personnelle).
+    func openMyStation() {
+        guard let link = myStationLink else { return }
+        NSWorkspace.shared.open(link)
+    }
+
+    /// Rien en lecture : lance les morceaux likés.
+    func playFavorites() {
+        Task { await monitor.runner.playFavorites() }
+    }
+
     /// Clic sur l'artiste : ouvre sa page dans Musique.
     func openArtist() {
         guard let track else { return }

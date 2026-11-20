@@ -181,6 +181,25 @@ nonisolated final class AppleScriptRunner: @unchecked Sendable {
         }
     }
 
+    /// Lance la playlist des morceaux likés (son nom dépend de la langue de Musique).
+    func playFavorites() async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            queue.async {
+                NSAppleScript(source: """
+                tell application "Music"
+                    repeat with n in {"Morceaux préférés", "Favourite Songs", "Favorite Songs", "Titres favoris"}
+                        if exists playlist n then
+                            play playlist n
+                            return
+                        end if
+                    end repeat
+                end tell
+                """)?.executeAndReturnError(nil)
+                cont.resume()
+            }
+        }
+    }
+
     /// Place la lecture de Musique à une position donnée (en secondes).
     func seek(to seconds: TimeInterval) async {
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
@@ -249,6 +268,8 @@ nonisolated final class AppleScriptRunner: @unchecked Sendable {
                     let s = NSAppleScript(source: """
                     tell application "Music"
                         try
+                            -- Morceau en streaming : Musique garde souvent la pochette du précédent.
+                            if class of current track is URL track then return ""
                             return raw data of artwork 1 of current track
                         end try
                         return ""

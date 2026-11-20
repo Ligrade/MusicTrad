@@ -19,9 +19,41 @@ struct LyricsView: View {
     private var content: some View {
         switch app.playback {
         case .musicNotRunning:
-            message("music.note", "Musique n'est pas ouverte", "Lance l'app Musique et un morceau.")
+            ContentUnavailableView {
+                VStack(spacing: 10) {
+                    // Logo de MusicTrad.
+                    Image(nsImage: NSApplication.shared.applicationIconImage)
+                        .resizable()
+                        .frame(width: 72, height: 72)
+                    Text("Musique n'est pas ouverte")
+                }
+            } actions: {
+                // Double croche : l'identité de l'app plutôt qu'un simple « play ».
+                StartButton(title: "Ouvrir Musique", glyph: "♫") { app.openMusic() }
+                    .padding(.top, 16)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .stopped:
-            message("pause.circle", "Aucune musique en lecture", "Lance un morceau dans Musique.")
+            ContentUnavailableView {
+                Label("Aucune musique en lecture", systemImage: "pause.circle")
+            } description: {
+                if app.myStationLink == nil {
+                    Text("Colle le lien de ta station dans Réglages › Général pour la lancer d'ici.")
+                }
+            } actions: {
+                VStack(spacing: 10) {
+                    if app.myStationLink != nil {
+                        StartButton(title: "Ma station", symbol: "dot.radiowaves.left.and.right") { app.openMyStation() }
+                    } else {
+                        SettingsLink {
+                            Label("Ajouter Ma station", systemImage: "plus.circle")
+                        }
+                    }
+                    StartButton(title: "Mes likes", symbol: "heart.fill") { app.playFavorites() }
+                }
+                .padding(.top, 16)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .notAuthorized:
             message("lock", "Accès à Musique refusé",
                     "Autorise MusicTrad dans Réglages Système › Confidentialité et sécurité › Automatisation.")
@@ -98,6 +130,36 @@ struct LyricsView: View {
     private func message(_ icon: String, _ title: String, _ detail: String) -> some View {
         ContentUnavailableView(title, systemImage: icon, description: Text(detail))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Gros bouton rouge façon Musique (« Ouvrir Musique », « Ma station »).
+private struct StartButton: View {
+    let title: String
+    var symbol: String? = nil
+    /// Caractère affiché à la place d'un symbole (ex. « ♫ »).
+    var glyph: String? = nil
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Label {
+                Text(title)
+            } icon: {
+                if let glyph { Text(glyph) } else if let symbol { Image(systemName: symbol) }
+            }
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 22)
+                .padding(.vertical, 12)
+                .background(Capsule().fill(LyricsPalette.original.opacity(hovering ? 1 : 0.88)))
+                .scaleEffect(hovering ? 1.04 : 1)
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: hovering)
     }
 }
 

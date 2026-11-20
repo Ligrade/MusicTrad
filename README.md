@@ -14,7 +14,7 @@
 ## Ce que fait l'app
 
 - **Détecte le morceau en cours** dans l'app Musique (titre, artiste, album, durée, position) par AppleScript, toutes les 0,5 s.
-- **Récupère les paroles** sur [LRCLIB](https://lrclib.net), une API publique et gratuite, en préférant les paroles synchronisées ; si LRCLIB n'a pas de version synchronisée cohérente, l'app essaie NetEase Cloud Music.
+- **Récupère les paroles** sur [LRCLIB](https://lrclib.net), une API publique et gratuite, en préférant les paroles synchronisées ; si LRCLIB n'a pas de version synchronisée cohérente, l'app interroge aussi NetEase Cloud Music, en parallèle.
 - **Traduit en français** chaque ligne, avec la traduction affichée sous l'original, au fil de l'eau :
   - **Apple** (par défaut) : traduction sur le Mac avec le framework Translation, gratuite, hors ligne et privée ;
   - **DeepL** (option) : avec ta clé API gratuite, rangée dans le Trousseau.
@@ -25,6 +25,7 @@
 - **Prépare le morceau suivant** à l'avance (playlist en cours, ou titre suivant de l'album via l'API publique Deezer).
 - **Chanson en français** : pas de traduction par défaut ; la pilule **FR → EN** la traduit en anglais à la demande (le français reste en blanc, l'anglais passe en rouge).
 - Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), l'**artiste** (un clic ouvre sa page dans Musique), une **étoile favori** synchronisée avec Musique, les commandes **⏮ ⏯ ⏭** et le choix de la **sortie AirPlay**.
+- **Musique fermée ou à l'arrêt** : un bouton rouge ♫ ouvre Musique ; sans lecture en cours, **Ma station** (ta station personnelle, lien à coller dans les Réglages) ou **Mes likes** (tes morceaux préférés).
 - Garde paroles et traductions en **cache**, avec un nettoyage automatique.
 - **Mode éco** (🍃 en haut à droite, actif au démarrage par défaut) : l'app reste dans la barre des menus mais ne consomme plus rien ; un bouton vert au centre la réactive. En marche, bulle fermée, elle tourne autour de 1 % de CPU.
 
@@ -69,7 +70,7 @@ tccutil reset AppleEvents fr.dynamicagence.MusicTrad
 
 | Onglet | Options |
 |---|---|
-| **Général** | Ouverture à la connexion, démarrage en mode éco, fenêtre flottante (désactivée par défaut, toujours au premier plan), accès à Musique |
+| **Général** | Ouverture à la connexion, démarrage en mode éco, lien de « Ma station », fenêtre flottante (désactivée par défaut, toujours au premier plan), accès à Musique |
 | **Affichage** | Taille des paroles et de la traduction, paroles originales oui/non, flou des lignes inactives, aperçu, décalage de synchronisation |
 | **Traduction** | Moteur Apple ou DeepL, préparation du morceau suivant, clé DeepL avec test et consommation du mois |
 | **Cache** | Espace utilisé, taille maximale (50 Mo par défaut), suppression après 3 mois sans écoute, ouverture dans le Finder, vidage |

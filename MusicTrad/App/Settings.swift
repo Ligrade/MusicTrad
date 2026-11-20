@@ -26,6 +26,7 @@ enum SettingsKey {
     static let cacheMaxAgeDays = "cacheMaxAgeDays"
     static let ecoMode = "ecoMode"
     static let ecoAtLaunch = "ecoAtLaunch"
+    static let myStationURL = "myStationURL"
 }
 
 enum SettingsDefault {

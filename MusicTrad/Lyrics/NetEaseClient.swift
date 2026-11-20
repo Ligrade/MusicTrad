@@ -24,7 +24,7 @@ nonisolated struct NetEaseClient: Sendable {
         let config = URLSessionConfiguration.ephemeral
         config.httpShouldSetCookies = false
         config.httpCookieAcceptPolicy = .never
-        config.timeoutIntervalForRequest = 10
+        config.timeoutIntervalForRequest = 4   // source de secours : ne jamais faire attendre les paroles
         config.httpAdditionalHeaders = ["User-Agent": "Mozilla/5.0 (Macintosh)", "Referer": "https://music.163.com/"]
         return URLSession(configuration: config)
     }()
@@ -81,12 +81,14 @@ nonisolated struct LyricsFinder: Sendable {
     private let netease = NetEaseClient()
 
     func best(for track: TrackInfo) async throws -> Lyrics? {
+        // NetEase interrogé en même temps que LRCLIB : s'il faut s'en servir, la réponse est déjà là.
+        async let fromNetEase = netease.versions(for: track)
         let fromLRCLIB: Lyrics?
         do { fromLRCLIB = try await lrclib.lyrics(for: track) } catch { fromLRCLIB = nil }
         if let l = fromLRCLIB, l.isInstrumental || l.syncCheck(duration: track.duration) == .synced {
             return l.withInstrumentalBreaks()
         }
-        let other = await netease.versions(for: track)
+        let other = await fromNetEase
         if let good = other.first(where: { $0.syncCheck(duration: track.duration) == .synced }) {
             return good.withInstrumentalBreaks()
         }
