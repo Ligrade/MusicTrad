@@ -135,11 +135,13 @@ private struct LanguagePill: View {
     }
 }
 
-/// Mode éco, Réglages et Quitter, dans une pilule.
+/// Mode éco, fenêtre flottante (si activée dans les Réglages), Réglages et Quitter, dans une pilule.
 private struct AppButtons: View {
     @Environment(AppState.self) private var app
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(SettingsKey.floatingWindowEnabled) private var floatingWindowEnabled = false
 
     var body: some View {
         Pill {
@@ -153,6 +155,15 @@ private struct AppButtons: View {
                 }
                 .help(app.ecoMode ? "Quitter le mode éco" : "Mode éco : met l'app en veille sans la fermer")
                 Divider().frame(height: 14)
+                if floatingWindowEnabled && !app.ecoMode {
+                    Button {
+                        openWindow(id: FloatingWindowView.id)
+                        NSApp.activate()
+                        dismiss()        // referme la bulle, la fenêtre flottante prend le relais
+                    } label: { Image(systemName: "macwindow.on.rectangle") }
+                    .help("Fenêtre flottante")
+                    Divider().frame(height: 14)
+                }
                 Button {
                     dismiss()            // referme la bulle pour qu'elle ne cache pas les Réglages
                     openSettings()

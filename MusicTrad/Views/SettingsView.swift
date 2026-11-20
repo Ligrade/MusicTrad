@@ -77,7 +77,7 @@ private struct GeneralSettings: View {
             } header: {
                 Text("Fenêtre flottante")
             } footer: {
-                Text("Désactivée par défaut. Une fois cochée, le bouton « Fenêtre flottante » apparaît dans le menu de la barre des menus. Elle reste toujours au premier plan.")
+                Text("Désactivée par défaut. Une fois cochée, son bouton apparaît dans la pilule en haut à droite de la bulle, juste après le mode éco. Elle reste toujours au premier plan.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Accès à Musique") {
