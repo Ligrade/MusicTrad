@@ -3,6 +3,7 @@ import SwiftUI
 struct MenuBarContentView: View {
     @Environment(AppState.self) private var app
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismiss) private var dismiss
     @AppStorage(SettingsKey.floatingWindowEnabled) private var floatingWindowEnabled = false
 
     var body: some View {
@@ -23,6 +24,7 @@ struct MenuBarContentView: View {
                 Button {
                     openWindow(id: FloatingWindowView.id)
                     NSApp.activate()
+                    dismiss()   // referme la bulle, la fenêtre flottante prend le relais
                 } label: { Label("Fenêtre flottante", systemImage: "macwindow.on.rectangle") }
                 .buttonStyle(.borderless)
                 .font(.title3)
