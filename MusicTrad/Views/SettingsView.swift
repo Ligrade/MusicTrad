@@ -3,12 +3,23 @@ import SwiftUI
 
 /// Réglages en onglets : Général, Affichage, Traduction, Cache.
 struct SettingsView: View {
+    /// Version lue dans l'Info.plist (CFBundleShortVersionString).
+    static var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+    }
+
     var body: some View {
-        TabView {
-            Tab("Général", systemImage: "gearshape") { GeneralSettings() }
-            Tab("Affichage", systemImage: "textformat.size") { DisplaySettings() }
-            Tab("Traduction", systemImage: "character.bubble") { TranslationSettings() }
-            Tab("Cache", systemImage: "internaldrive") { CacheSettings() }
+        VStack(spacing: 0) {
+            TabView {
+                Tab("Général", systemImage: "gearshape") { GeneralSettings() }
+                Tab("Affichage", systemImage: "textformat.size") { DisplaySettings() }
+                Tab("Traduction", systemImage: "character.bubble") { TranslationSettings() }
+                Tab("Cache", systemImage: "internaldrive") { CacheSettings() }
+            }
+            Text("MusicTrad · Version \(Self.version) by Ligrade")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 10)
         }
         .frame(width: 580)
     }
