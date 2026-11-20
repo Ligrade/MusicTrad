@@ -3,7 +3,8 @@ import Translation
 
 /// Traduction sur l'appareil via le framework Translation d'Apple.
 nonisolated struct AppleTranslator: LyricsTranslator {
-    @concurrent func translate(lines: [String], from source: Locale.Language) async throws -> [String] {
+    @concurrent func translate(lines: [String], from source: Locale.Language,
+                               progress: (@Sendable (Int, String) -> Void)?) async throws -> [String] {
         let status = await LanguageAvailability().status(from: source, to: .french)
         switch status {
         case .installed: break
@@ -13,28 +14,43 @@ nonisolated struct AppleTranslator: LyricsTranslator {
         }
 
         let session = TranslationSession(installedSource: source, target: .french)
+        var out = Array(repeating: "", count: lines.count)
 
-        // 1. Tout le morceau d'un bloc : chaque ligne est traduite avec le sens des voisines
-        //    (phrases coupées sur deux lignes, pronoms, expressions). Gardé si les lignes correspondent.
-        if lines.count > 1,
-           let whole = try? await session.translate(lines.joined(separator: "\n")) {
-            let out = whole.targetText
+        // Strophes de 4 lignes : assez de contexte pour les phrases coupées, et les premières
+        // traductions s'affichent en moins d'une seconde (le morceau entier prend ~10 s).
+        let chunkSize = 4
+        let chunks = stride(from: 0, to: lines.count, by: chunkSize).map { $0..<min($0 + chunkSize, lines.count) }
+        let requests = chunks.enumerated().map {
+            TranslationSession.Request(sourceText: lines[$0.element].joined(separator: "\n"),
+                                       clientIdentifier: String($0.offset))
+        }
+        var leftovers: [Int] = []
+        for try await response in session.translate(batch: requests) {
+            guard let id = response.clientIdentifier, let c = Int(id), chunks.indices.contains(c) else { continue }
+            let range = chunks[c]
+            let parts = response.targetText
                 .components(separatedBy: "\n")          // Apple double parfois les retours à la ligne
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
-            if out.count == lines.count { return out }
+            if parts.count == range.count {
+                for (k, i) in range.enumerated() {
+                    out[i] = parts[k]
+                    progress?(i, parts[k])
+                }
+            } else {
+                leftovers += Array(range)
+            }
         }
 
-        // 2. Sinon ligne par ligne.
-        let requests = lines.enumerated().map {
-            TranslationSession.Request(sourceText: $0.element, clientIdentifier: String($0.offset))
-        }
-        let responses = try await session.translations(from: requests)
-
-        var out = lines
-        for r in responses {
-            if let id = r.clientIdentifier, let i = Int(id), out.indices.contains(i) {
-                out[i] = r.targetText
+        // Strophes dont le découpage n'est pas retombé juste : ligne par ligne.
+        if !leftovers.isEmpty {
+            let single = leftovers.map {
+                TranslationSession.Request(sourceText: lines[$0], clientIdentifier: String($0))
+            }
+            for try await response in session.translate(batch: single) {
+                guard let id = response.clientIdentifier, let i = Int(id), out.indices.contains(i) else { continue }
+                out[i] = response.targetText
+                progress?(i, response.targetText)
             }
         }
         return out

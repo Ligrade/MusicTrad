@@ -131,9 +131,7 @@ private struct LineRow: View {
     var body: some View {
         Group {
             if original.trimmingCharacters(in: .whitespaces).isEmpty {
-                Text("♪")
-                    .font(.system(size: fontSize, weight: .semibold))
-                    .foregroundStyle(LyricsPalette.translation)
+                BreakRow(isCurrent: isCurrent, fontSize: fontSize)
             } else {
                 VStack(alignment: .leading, spacing: fontSize * 0.15) {
                     if onlyTranslation, hasTranslation, let translation {
@@ -170,6 +168,37 @@ private struct LineRow: View {
     }
 }
 
+/// Passage instrumental : ♪♪♪ qui s'allument l'un après l'autre au fil du solo
+/// (comme les points de Musique), respirent doucement, puis grossissent et s'effacent
+/// juste avant la reprise du chant.
+private struct BreakRow: View {
+    @Environment(AppState.self) private var app
+    let isCurrent: Bool
+    let fontSize: Double
+
+    var body: some View {
+        let progress = isCurrent ? app.breakProgress : 0
+        // Dernier dixième : les notes grossissent puis disparaissent.
+        let ending = min(max((progress - 0.9) / 0.1, 0), 1)
+        HStack(spacing: fontSize * 0.25) {
+            ForEach(0..<3, id: \.self) { i in
+                let fill = isCurrent ? min(max(progress * 3 - Double(i), 0), 1) : 0
+                Text("♪")
+                    .font(.system(size: fontSize, weight: .semibold))
+                    .foregroundStyle(LyricsPalette.translation)
+                    .opacity(isCurrent ? 0.25 + 0.75 * fill : 0.7)
+                    .scaleEffect(1 + 0.12 * fill, anchor: .bottom)
+            }
+        }
+        .phaseAnimator([false, true]) { content, breathing in
+            content.scaleEffect(isCurrent && breathing ? 1.06 : 1, anchor: .leading)
+        } animation: { _ in .easeInOut(duration: 1.4) }
+        .scaleEffect(1 + 0.3 * ending, anchor: .leading)
+        .opacity(1 - ending)
+        .animation(.easeOut(duration: 0.25), value: progress)
+    }
+}
+
 /// État de la traduction au-dessus des paroles.
 private struct TranslationBanner: View {
     @Environment(AppState.self) private var app
@@ -177,8 +206,15 @@ private struct TranslationBanner: View {
 
     var body: some View {
         Group {
+            if app.calibrating {
+                HStack(spacing: 10) {
+                    Label("Clique sur la ligne chantée en ce moment", systemImage: "scope")
+                        .foregroundStyle(LyricsPalette.original)
+                    Button("Annuler") { app.cancelCalibration() }.controlSize(.small)
+                }
+            } else {
             switch app.translationStatus {
-            case .translating:
+            case .translating, .partial:
                 HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Traduction en cours…") }
             case .alreadyFrench:
                 Label("Chanson en français : pas de traduction", systemImage: "checkmark.circle")
@@ -193,6 +229,7 @@ private struct TranslationBanner: View {
                 Label(msg, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
             case .idle, .done:
                 EmptyView()
+            }
             }
         }
         .font(.body)

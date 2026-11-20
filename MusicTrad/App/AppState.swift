@@ -14,6 +14,7 @@ enum LyricsStatus: Equatable {
 enum TranslationStatus: Equatable {
     case idle
     case translating
+    case partial([String])       // en cours, lignes déjà traduites (les autres vides)
     case done([String])          // aligné sur Lyrics.lines
     case alreadyFrench
     case needsDownload(Locale.Language)
@@ -38,7 +39,7 @@ final class AppState {
     private(set) var favoriteError: String?
 
     private let monitor = MusicPlayerMonitor()
-    private let lrclib = LRCLIBClient()
+    private let finder = LyricsFinder()
     private let lyricsCache = DiskCache(folder: "lyrics")
     private let translationCache = DiskCache(folder: "translations")
     private var currentTrackID: String?
@@ -61,8 +62,10 @@ final class AppState {
     }
 
     var translations: [String]? {
-        if case .done(let t) = translationStatus { return t }
-        return nil
+        switch translationStatus {
+        case .done(let t), .partial(let t): return t
+        default: return nil
+        }
     }
 
     /// Ligne chantée, recalculée 20 fois par seconde à partir d'une horloge locale
@@ -91,9 +94,44 @@ final class AppState {
         anchor = (polled, Date(), state.isPlaying)
     }
 
+    /// Avancement (0 → 1) du passage instrumental en cours, pour l'animation ♪♪♪.
+    private(set) var breakProgress: Double = 0
+
     private func refreshCurrentLine() {
-        let index = lyrics?.lineIndex(at: livePosition + Preferences.syncOffset + songOffset)
+        let position = livePosition + Preferences.syncOffset + songOffset
+        let index = lyrics?.lineIndex(at: position)
         if index != currentLineIndex { currentLineIndex = index }
+        if let index, let lines = lyrics?.lines, lines[index].isBlank, let start = lines[index].time,
+           index + 1 < lines.count, let end = lines[index + 1].time, end > start {
+            let p = min(max((position - start) / (end - start), 0), 1)
+            if abs(p - breakProgress) >= 0.01 { breakProgress = p }
+        } else if breakProgress != 0 {
+            breakProgress = 0
+        }
+    }
+
+    // MARK: AirPlay
+
+    private(set) var airPlayDevices: [AirPlayDevice] = []
+    /// Vrai si le son part ailleurs que sur le Mac (icône AirPlay colorée).
+    var airPlayActive: Bool { airPlayDevices.contains { $0.selected && !$0.isComputer } }
+
+    func refreshAirPlay() {
+        Task { airPlayDevices = await monitor.runner.airPlayDevices() }
+    }
+
+    /// Clic sur une sortie : elle seule. Avec `addToGroup`, on l'ajoute ou la retire du groupe.
+    func selectAirPlay(_ device: AirPlayDevice, addToGroup: Bool = false) {
+        Task {
+            if addToGroup {
+                // On garde toujours au moins une sortie.
+                if device.selected, airPlayDevices.filter(\.selected).count <= 1 { return }
+                await monitor.runner.selectAirPlay(device.name, exclusive: false, selected: !device.selected)
+            } else {
+                await monitor.runner.selectAirPlay(device.name, exclusive: true)
+            }
+            airPlayDevices = await monitor.runner.airPlayDevices()
+        }
     }
 
     /// Clic sur la pochette : ouvre l'album dans Musique.
@@ -105,9 +143,22 @@ final class AppState {
         }
     }
 
-    /// Clic sur une ligne : Musique repart au début de ce passage.
+    /// Mode « recaler » : le prochain clic sur une ligne indique ce qu'on entend en ce moment.
+    private(set) var calibrating = false
+
+    func startCalibration() { calibrating = true }
+    func cancelCalibration() { calibrating = false }
+
+    /// Clic sur une ligne : Musique repart au début de ce passage
+    /// (ou, en mode recalage, la ligne devient celle chantée maintenant).
     func seek(to line: LyricLine) {
         guard let time = line.time, track != nil else { return }
+        if calibrating {
+            calibrating = false
+            setSongOffset(time - livePosition - Preferences.syncOffset + 0.05)
+            refreshCurrentLine()
+            return
+        }
         let target = max(0, time - songOffset)
         anchor = (target, Date(), anchor.playing)
         seekGuardUntil = Date().addingTimeInterval(1.5)
@@ -151,7 +202,7 @@ final class AppState {
         Task {
             defer { searchingVersion = false }
             if versions.isEmpty {
-                versions = (try? await lrclib.alternatives(for: track)) ?? []
+                versions = await finder.allVersions(for: track)
             }
             guard currentTrackID == track.id, !versions.isEmpty else { return }
             let start = versions.firstIndex { $0.fullText == current.fullText } ?? -1
@@ -239,6 +290,7 @@ final class AppState {
         sourceLanguage = nil
         versions = []
         versionInfo = nil
+        calibrating = false
         songOffset = state.track.map(Self.savedSongOffset) ?? 0
         artworkTask?.cancel()
         if let track = state.track {
@@ -271,7 +323,7 @@ final class AppState {
     // MARK: Paroles
 
     private func load(_ track: TrackInfo) async {
-        if let cached = lyricsCache.load(Lyrics.self, key: Self.lyricsKey(track)) {
+        if let cached = lyricsCache.load(Lyrics.self, key: Self.lyricsKey(track))?.withInstrumentalBreaks() {
             lyricsStatus = .loaded(cached)
             await refreshIfDoubtful(cached, track: track)
             guard !Task.isCancelled else { return }
@@ -299,7 +351,7 @@ final class AppState {
         let key = Self.lyricsKey(track)
         guard !cached.isInstrumental, cached.syncCheck(duration: track.duration) != .synced,
               refreshedKeys.insert(key).inserted,
-              let fresh = try? await lrclib.lyrics(for: track),
+              let fresh = try? await finder.best(for: track),
               fresh.syncCheck(duration: track.duration) == .synced,
               !Task.isCancelled, currentTrackID == track.id else { return }
         lyricsCache.save(fresh, key: key, label: "\(track.artist) – \(track.title)")
@@ -316,10 +368,10 @@ final class AppState {
     /// (morceau préchargé qui devient le morceau en cours).
     private func fetchLyrics(_ track: TrackInfo) async throws -> Lyrics? {
         let key = Self.lyricsKey(track)
-        if let cached = lyricsCache.load(Lyrics.self, key: key) { return cached }
+        if let cached = lyricsCache.load(Lyrics.self, key: key) { return cached.withInstrumentalBreaks() }
         if let running = lyricsTasks[key] { return try await running.value }
-        let task = Task { [lrclib, lyricsCache] () throws -> Lyrics? in
-            let result = try await lrclib.lyrics(for: track)
+        let task = Task { [finder, lyricsCache] () throws -> Lyrics? in
+            let result = try await finder.best(for: track)
             if let result { lyricsCache.save(result, key: key, label: "\(track.artist) – \(track.title)") }
             return result
         }
@@ -355,7 +407,9 @@ final class AppState {
         if sourceLanguage?.isFrench != true { translationStatus = .translating }
 
         do {
-            let outcome = try await fetchTranslation(track, lyrics: lyrics, engine: engine)
+            let outcome = try await fetchTranslation(track, lyrics: lyrics, engine: engine) { [weak self] line, text in
+                self?.showPartial(trackID: track.id, line: line, text: text, count: lyrics.lines.count)
+            }
             guard !Task.isCancelled, currentTrackID == track.id else { return }
             switch outcome {
             case .french: translationStatus = .alreadyFrench
@@ -369,12 +423,27 @@ final class AppState {
         }
     }
 
+    /// Affiche une ligne traduite dès qu'elle arrive.
+    private func showPartial(trackID: String, line: Int, text: String, count: Int) {
+        guard currentTrackID == trackID else { return }
+        var lines: [String]
+        switch translationStatus {
+        case .translating: lines = Array(repeating: "", count: count)
+        case .partial(let current): lines = current
+        default: return
+        }
+        guard lines.indices.contains(line) else { return }
+        lines[line] = text
+        translationStatus = .partial(lines)
+    }
+
     private static func translationKey(_ t: TrackInfo, _ lyrics: Lyrics, _ engine: TranslationEngine) -> String {
         "\(engine.rawValue)|fr|v2|\(lyricsKey(t))|\(lyrics.fullText.hashValueStable)"
     }
 
     /// Traduction depuis le cache ou le moteur choisi, sans toucher à l'affichage.
-    private func fetchTranslation(_ track: TrackInfo, lyrics: Lyrics, engine: TranslationEngine) async throws -> TranslationOutcome {
+    private func fetchTranslation(_ track: TrackInfo, lyrics: Lyrics, engine: TranslationEngine,
+                                  onLine: (@MainActor (Int, String) -> Void)? = nil) async throws -> TranslationOutcome {
         guard let source = LanguageDetector.detect(lyrics.fullText) else { throw TranslationFailure.languageNotDetected }
         if source.isFrench { return .french }
 
@@ -390,7 +459,11 @@ final class AppState {
         let count = lyrics.lines.count
         let task = Task { [translationCache] () throws -> [String] in
             let translator: LyricsTranslator = engine == .deepl ? DeepLTranslator() : AppleTranslator()
-            let output = try await translator.translate(lines: input, from: source)
+            let output = try await translator.translate(lines: input, from: source) { i, text in
+                guard let onLine, indices.indices.contains(i) else { return }
+                let line = indices[i]
+                Task { @MainActor in onLine(line, text) }
+            }
             var aligned = Array(repeating: "", count: count)
             for (i, idx) in indices.enumerated() { aligned[idx] = output[i] }
             translationCache.save(aligned, key: key, label: "\(track.artist) – \(track.title) [\(engine.rawValue), \(source.minimalIdentifier) → fr]")

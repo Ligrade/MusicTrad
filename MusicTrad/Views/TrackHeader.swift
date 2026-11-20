@@ -7,6 +7,7 @@ struct TrackHeader: View {
     var artworkSize: CGFloat = 64
     /// Boutons Réglages et Quitter en haut à droite (menu de la barre des menus).
     var showsAppButtons = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -29,7 +30,10 @@ struct TrackHeader: View {
                     .animation(.spring(response: 0.45, dampingFraction: 0.72), value: app.playback.isPlaying)
                     .animation(.spring(response: 0.5, dampingFraction: 0.86), value: app.artworkID)
                     .contentShape(.rect)
-                    .onTapGesture { app.openAlbum() }
+                    .onTapGesture {
+                        if showsAppButtons { dismiss() }   // referme la bulle (pas la fenêtre flottante)
+                        app.openAlbum()
+                    }
                     .pointerStyle(.link)
                     .help("Ouvrir l'album dans Musique")
 

@@ -20,6 +20,9 @@ struct PlaybackControls: View {
         .overlay(alignment: .trailing) {
             SyncBadge().padding(.trailing, 18)
         }
+        .overlay(alignment: .leading) {
+            AirPlayButton().padding(.leading, 18)
+        }
     }
 
     private func button(_ symbol: String, help: String, scale: CGFloat, action: @escaping () -> Void) -> some View {

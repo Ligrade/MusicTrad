@@ -9,7 +9,8 @@ nonisolated struct DeepLTranslator: LyricsTranslator {
     ]
     private static let batchSize = 50   // limite DeepL par requête
 
-    func translate(lines: [String], from source: Locale.Language) async throws -> [String] {
+    func translate(lines: [String], from source: Locale.Language,
+                   progress: (@Sendable (Int, String) -> Void)?) async throws -> [String] {
         guard let key = KeychainStore.load(), !key.isEmpty else { throw TranslationFailure.missingAPIKey }
 
         let host = key.hasSuffix(":fx") ? "api-free.deepl.com" : "api.deepl.com"

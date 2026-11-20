@@ -14,15 +14,16 @@
 ## Ce que fait l'app
 
 - **Détecte le morceau en cours** dans l'app Musique (titre, artiste, album, durée, position) par AppleScript, toutes les 0,5 s.
-- **Récupère les paroles** sur [LRCLIB](https://lrclib.net), une API publique et gratuite, en préférant les paroles synchronisées.
-- **Traduit en français** chaque ligne, avec la traduction affichée sous l'original :
+- **Récupère les paroles** sur [LRCLIB](https://lrclib.net), une API publique et gratuite, en préférant les paroles synchronisées ; si LRCLIB n'a pas de version synchronisée cohérente, l'app essaie NetEase Cloud Music.
+- **Traduit en français** chaque ligne, avec la traduction affichée sous l'original, au fil de l'eau :
   - **Apple** (par défaut) : traduction sur le Mac avec le framework Translation, gratuite, hors ligne et privée ;
   - **DeepL** (option) : avec ta clé API gratuite, rangée dans le Trousseau.
 - **Suit la chanson** : la ligne chantée est mise en avant et la vue défile toute seule. Un clic sur une ligne fait repartir Musique à ce passage.
-- **Vérifie la synchro** : un voyant indique si le timing des paroles colle au morceau, avec un décalage réglable par morceau et le choix d'une autre version LRCLIB.
+- **Vérifie la synchro** : un voyant indique si le timing des paroles colle au morceau, avec un recalage en un clic sur la ligne entendue, un décalage réglable par morceau et le choix d'une autre version ou source.
+- **Marque les passages instrumentaux** : ♪♪♪ qui s'allument au fil du solo, même quand le fichier de paroles ne les indique pas.
 - **Prépare le morceau suivant** à l'avance (playlist en cours, ou titre suivant de l'album via l'API publique Deezer).
 - **Ne traduit rien** si la chanson est déjà en français.
-- Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), une **étoile favori** synchronisée avec Musique et les commandes **⏮ ⏯ ⏭**.
+- Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), une **étoile favori** synchronisée avec Musique, les commandes **⏮ ⏯ ⏭** et le choix de la **sortie AirPlay**.
 - Garde paroles et traductions en **cache**, avec un nettoyage automatique.
 
 Aucune API de paroles d'Apple n'est utilisée (il n'en existe pas pour les développeurs), ni aucun jeton privé d'Apple Music.
@@ -86,7 +87,7 @@ Une chanson pèse environ 5 Ko : 50 Mo, c'est plusieurs milliers de titres.
 ## Confidentialité
 
 - Avec le moteur Apple, la traduction se fait **sur le Mac** : les paroles ne partent sur aucun serveur.
-- Les seules requêtes réseau sont : LRCLIB (paroles), Deezer et iTunes Search (morceau suivant, pochette de secours, lien vers l'album), et DeepL si tu le choisis.
+- Les seules requêtes réseau sont : LRCLIB et NetEase (paroles), Deezer et iTunes Search (morceau suivant, pochette de secours, lien vers l'album), et DeepL si tu le choisis.
 - La clé DeepL est stockée dans le **Trousseau**, jamais dans le code ni dans les réglages.
 
 ## Organisation du code

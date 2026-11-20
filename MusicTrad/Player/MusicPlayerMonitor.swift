@@ -45,6 +45,25 @@ extension MusicPlayerMonitor {
     }
 }
 
+nonisolated struct AirPlayDevice: Identifiable, Hashable, Sendable {
+    let name: String
+    let kind: String
+    let selected: Bool
+    let available: Bool
+    var id: String { name }
+    var isComputer: Bool { kind == "computer" }
+
+    var symbol: String {
+        switch kind {
+        case "computer": "laptopcomputer"
+        case "Apple TV": "appletv"
+        case "HomePod": "homepod"
+        case "Bluetooth device": "headphones"
+        default: "hifispeaker"
+        }
+    }
+}
+
 nonisolated enum PlayerCommand: String, Sendable {
     case previous = "back track"     // comme le bouton ⏮ de Musique : début du morceau, puis précédent
     case playPause = "playpause"
@@ -94,6 +113,56 @@ nonisolated final class AppleScriptRunner: @unchecked Sendable {
                     return s
                 }()
                 script.executeAndReturnError(nil)
+                cont.resume()
+            }
+        }
+    }
+
+    /// Sorties AirPlay connues de Musique (Mac, enceintes, Apple TV…).
+    func airPlayDevices() async -> [AirPlayDevice] {
+        guard NSWorkspace.shared.runningApplications.contains(where: { $0.bundleIdentifier == "com.apple.Music" }) else {
+            return []
+        }
+        return await withCheckedContinuation { (cont: CheckedContinuation<[AirPlayDevice], Never>) in
+            queue.async {
+                let source = """
+                tell application "Music"
+                    set deviceList to {}
+                    repeat with airDevice in AirPlay devices
+                        set end of deviceList to {name of airDevice, (kind of airDevice) as text, selected of airDevice, available of airDevice}
+                    end repeat
+                    return deviceList
+                end tell
+                """
+                var error: NSDictionary?
+                guard let result = NSAppleScript(source: source)?.executeAndReturnError(&error), error == nil else {
+                    cont.resume(returning: []); return
+                }
+                var devices: [AirPlayDevice] = []
+                if result.numberOfItems > 0 {
+                    for i in 1...result.numberOfItems {
+                        guard let d = result.atIndex(i), d.numberOfItems >= 4 else { continue }
+                        devices.append(AirPlayDevice(
+                            name: d.atIndex(1)?.stringValue ?? "?",
+                            kind: d.atIndex(2)?.stringValue ?? "",
+                            selected: d.atIndex(3)?.booleanValue ?? false,
+                            available: d.atIndex(4)?.booleanValue ?? false))
+                    }
+                }
+                cont.resume(returning: devices)
+            }
+        }
+    }
+
+    /// Choisit la sortie : seule (`exclusive`) ou ajoutée / retirée du groupe.
+    func selectAirPlay(_ name: String, exclusive: Bool, selected: Bool = true) async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            queue.async {
+                let escaped = name.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+                let command = exclusive
+                    ? "set current AirPlay devices to {AirPlay device \"\(escaped)\"}"
+                    : "set selected of AirPlay device \"\(escaped)\" to \(selected)"
+                NSAppleScript(source: "tell application \"Music\" to \(command)")?.executeAndReturnError(nil)
                 cont.resume()
             }
         }

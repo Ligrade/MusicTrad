@@ -100,10 +100,10 @@ nonisolated struct LRCLIBClient: Sendable {
     private static func convert(_ r: Record) -> Lyrics? {
         if let synced = r.syncedLyrics, !synced.isEmpty {
             let lines = LRCParser.parse(synced)
-            if !lines.isEmpty { return Lyrics(lines: lines, isSynced: true, isInstrumental: false) }
+            if !lines.isEmpty { return Lyrics(lines: lines, isSynced: true, isInstrumental: false, source: "LRCLIB") }
         }
         if let plain = r.plainLyrics, !plain.isEmpty {
-            return Lyrics(lines: LRCParser.plain(plain), isSynced: false, isInstrumental: false)
+            return Lyrics(lines: LRCParser.plain(plain), isSynced: false, isInstrumental: false, source: "LRCLIB")
         }
         if r.instrumental == true {
             return Lyrics(lines: [], isSynced: false, isInstrumental: true)

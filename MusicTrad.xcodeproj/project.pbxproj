@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		09C8BBA1AFF575AC38220AD3 /* NetEaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7921207AB609C231F850E2B0 /* NetEaseClient.swift */; };
 		09FBC3423E3E5F960D37CCDB /* MenuBarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6BE6737454F7D9B3C953691 /* MenuBarContentView.swift */; };
 		0DB717F79BCD8B8B9F0FDDCA /* LyricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9CD3BF18714C1A35DA33D8B /* LyricsView.swift */; };
 		0F6E054B59F400608A17411E /* MusicTradApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 268A3C11C1A02F498B58E9AA /* MusicTradApp.swift */; };
@@ -24,6 +25,7 @@
 		8C3CD76ECF3573F2310D8759 /* NextTrackPredictor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFD780D0C7AA37606FFE5A3 /* NextTrackPredictor.swift */; };
 		911AA5D7EEBD23F03C83AAAE /* LyricsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 973241DF63D89952AE90EC2B /* LyricsModels.swift */; };
 		9388003434EFE6AA35E7B5B1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4200EC05F9DF4E63C541AF04 /* Assets.xcassets */; };
+		A4D9356AB4DAB4E5599D492D /* AirPlayButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1CE95299F125099585F8F5 /* AirPlayButton.swift */; };
 		A68FD25CEB1B66BF6F80E250 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8B653C3241ED6DA8F980A03 /* KeychainStore.swift */; };
 		A69BF3878AE55F5712CD3F15 /* TrackHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3236C0C95F84FE6B79FD05F /* TrackHeader.swift */; };
 		AC558295310E1379B7F6CB1A /* AppleTranslator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69A60AB00114C71866DAF710 /* AppleTranslator.swift */; };
@@ -46,6 +48,8 @@
 		69013B4C4AAE2C023D3D8862 /* FloatingWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingWindowView.swift; sourceTree = "<group>"; };
 		69A60AB00114C71866DAF710 /* AppleTranslator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleTranslator.swift; sourceTree = "<group>"; };
 		69E4359662D700D4FAE17BE6 /* PlaybackControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackControls.swift; sourceTree = "<group>"; };
+		6B1CE95299F125099585F8F5 /* AirPlayButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirPlayButton.swift; sourceTree = "<group>"; };
+		7921207AB609C231F850E2B0 /* NetEaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetEaseClient.swift; sourceTree = "<group>"; };
 		7F463B34E4C3ECF31542CC8D /* MusicPlayerMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayerMonitor.swift; sourceTree = "<group>"; };
 		835AF7817072A27D93E255AC /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		91B97D49EE4FACDC2335511D /* MusicTrad.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MusicTrad.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -127,6 +131,7 @@
 				2967549C93FDD38D45600E35 /* LRCLIBClient.swift */,
 				6276EC57A2480F91E3039A68 /* LRCParser.swift */,
 				973241DF63D89952AE90EC2B /* LyricsModels.swift */,
+				7921207AB609C231F850E2B0 /* NetEaseClient.swift */,
 			);
 			path = Lyrics;
 			sourceTree = "<group>";
@@ -150,6 +155,7 @@
 		D8E3EA0E5BAE09BC9586BE14 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				6B1CE95299F125099585F8F5 /* AirPlayButton.swift */,
 				69013B4C4AAE2C023D3D8862 /* FloatingWindowView.swift */,
 				F9CD3BF18714C1A35DA33D8B /* LyricsView.swift */,
 				E6BE6737454F7D9B3C953691 /* MenuBarContentView.swift */,
@@ -232,6 +238,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A4D9356AB4DAB4E5599D492D /* AirPlayButton.swift in Sources */,
 				4716884FD312DF422D3F6754 /* AppState.swift in Sources */,
 				AC558295310E1379B7F6CB1A /* AppleTranslator.swift in Sources */,
 				2DFB640A9BD73E8744A54A98 /* ArtworkService.swift in Sources */,
@@ -247,6 +254,7 @@
 				09FBC3423E3E5F960D37CCDB /* MenuBarContentView.swift in Sources */,
 				2BBE8063BB7C6BC0038609A3 /* MusicPlayerMonitor.swift in Sources */,
 				0F6E054B59F400608A17411E /* MusicTradApp.swift in Sources */,
+				09C8BBA1AFF575AC38220AD3 /* NetEaseClient.swift in Sources */,
 				8C3CD76ECF3573F2310D8759 /* NextTrackPredictor.swift in Sources */,
 				CB821913049185858CDD487A /* PlaybackControls.swift in Sources */,
 				4B8CF5AB8514951CF06F4716 /* Settings.swift in Sources */,

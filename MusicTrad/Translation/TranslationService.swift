@@ -3,7 +3,9 @@ import NaturalLanguage
 
 /// Traduction ligne à ligne : renvoie exactement autant de lignes qu'en entrée.
 nonisolated protocol LyricsTranslator: Sendable {
-    func translate(lines: [String], from source: Locale.Language) async throws -> [String]
+    /// `progress` reçoit (index de ligne, traduction) au fil de l'eau quand le moteur le permet.
+    func translate(lines: [String], from source: Locale.Language,
+                   progress: (@Sendable (Int, String) -> Void)?) async throws -> [String]
 }
 
 nonisolated enum TranslationFailure: LocalizedError {

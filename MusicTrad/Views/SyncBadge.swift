@@ -20,7 +20,7 @@ struct SyncBadge: View {
         .disabled(check == nil)
         .help("Vérifier la synchronisation des paroles")
         .popover(isPresented: $showDetails, arrowEdge: .top) {
-            SyncDetails().environment(app)
+            SyncDetails(isPresented: $showDetails).environment(app)
         }
     }
 
@@ -43,6 +43,7 @@ struct SyncBadge: View {
 
 private struct SyncDetails: View {
     @Environment(AppState.self) private var app
+    @Binding var isPresented: Bool
 
     var body: some View {
         let check = app.syncCheck ?? .unsynced
@@ -54,9 +55,21 @@ private struct SyncDetails: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+            if let source = app.lyrics?.source {
+                Text("Source : \(source)").font(.caption).foregroundStyle(.tertiary)
+            }
 
             if check != .unsynced {
                 Divider()
+                Button {
+                    app.startCalibration()
+                    isPresented = false
+                } label: {
+                    Label("Recaler sur ce que j'entends", systemImage: "scope")
+                        .frame(maxWidth: .infinity)
+                }
+                .controlSize(.large)
+                .help("Clique ensuite sur la ligne chantée en ce moment : tout le morceau se cale dessus.")
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text("Décalage pour ce morceau").font(.subheadline.weight(.semibold))
@@ -84,7 +97,7 @@ private struct SyncDetails: View {
                 Button {
                     app.tryOtherVersion()
                 } label: {
-                    Label("Essayer une autre version", systemImage: "arrow.triangle.2.circlepath")
+                    Label("Autre version / source", systemImage: "arrow.triangle.2.circlepath")
                 }
                 .disabled(app.searchingVersion)
                 if app.searchingVersion { ProgressView().controlSize(.small) }
@@ -110,7 +123,7 @@ private struct SyncDetails: View {
     private func detail(_ c: SyncCheck) -> String {
         switch c {
         case .synced:
-            "Le timing des paroles correspond à la durée du morceau. Si c'est quand même décalé, ajuste ci-dessous ou essaie une autre version."
+            "Le timing correspond à la durée du morceau. Si c'est quand même décalé : recale sur ce que tu entends, ajuste le décalage, ou essaie une autre version ou source (LRCLIB, NetEase)."
         case .tooLong:
             "Ces paroles durent plus longtemps que le morceau : elles viennent sans doute d'une autre version (album, radio, live)."
         case .endsEarly:
