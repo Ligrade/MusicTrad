@@ -29,23 +29,26 @@ nonisolated struct LRCLIBClient: Sendable {
     /// Renvoie les paroles, ou nil si rien n'a été trouvé.
     /// Si la réponse directe n'est pas synchronisée (ou que son timing ne colle pas à la durée),
     /// on cherche une meilleure version parmi les autres enregistrements.
+    /// Quand plusieurs versions synchronisées existent, on prend celle sur laquelle la majorité
+    /// s'accorde (la réponse directe est parfois une copie décalée).
     func lyrics(for track: TrackInfo) async throws -> Lyrics? {
         let direct = try await get(track).flatMap(Self.convert)
-        if let direct, direct.isInstrumental || direct.syncCheck(duration: track.duration) == .synced {
-            return direct
+        if let direct, direct.isInstrumental { return direct }
+        // Copies identiques gardées : elles comptent comme des « votes » pour le bon timing.
+        let others = (try? await alternatives(for: track, unique: false)) ?? []
+        let good = others.filter { $0.syncCheck(duration: track.duration) == .synced }
+        if let direct, direct.syncCheck(duration: track.duration) == .synced {
+            return Lyrics.consensus([direct] + good) ?? direct
         }
-        let others = (try? await alternatives(for: track)) ?? []
-        if let good = others.first(where: { $0.syncCheck(duration: track.duration) == .synced }) {
-            return good
-        }
-        return direct ?? others.first
+        return Lyrics.consensus(good) ?? good.first ?? direct ?? others.first
     }
 
     /// Toutes les versions trouvées, de la plus fiable à la moins fiable, sans doublons.
-    func alternatives(for track: TrackInfo) async throws -> [Lyrics] {
-        let ranked = try await search(track)
+    func alternatives(for track: TrackInfo, unique: Bool = true) async throws -> [Lyrics] {
+        let all = try await search(track).compactMap(Self.convert)
+        guard unique else { return all }
         var seen = Set<String>()
-        return ranked.compactMap(Self.convert).filter { seen.insert($0.fullText).inserted }
+        return all.filter { seen.insert($0.fullText).inserted }
     }
 
     private func get(_ track: TrackInfo) async throws -> Record? {
@@ -100,10 +103,10 @@ nonisolated struct LRCLIBClient: Sendable {
     private static func convert(_ r: Record) -> Lyrics? {
         if let synced = r.syncedLyrics, !synced.isEmpty {
             let lines = LRCParser.parse(synced)
-            if !lines.isEmpty { return Lyrics(lines: lines, isSynced: true, isInstrumental: false, source: "LRCLIB") }
+            if !lines.isEmpty { return Lyrics(lines: lines, isSynced: true, isInstrumental: false, source: "LRCLIB", revision: Lyrics.currentRevision) }
         }
         if let plain = r.plainLyrics, !plain.isEmpty {
-            return Lyrics(lines: LRCParser.plain(plain), isSynced: false, isInstrumental: false, source: "LRCLIB")
+            return Lyrics(lines: LRCParser.plain(plain), isSynced: false, isInstrumental: false, source: "LRCLIB", revision: Lyrics.currentRevision)
         }
         if r.instrumental == true {
             return Lyrics(lines: [], isSynced: false, isInstrumental: true)

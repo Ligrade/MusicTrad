@@ -410,7 +410,9 @@ final class AppState {
     /// on regarde si LRCLIB a mieux (cas des caches faits avant la vérification).
     private func refreshIfDoubtful(_ cached: Lyrics, track: TrackInfo) async {
         let key = Self.lyricsKey(track)
-        guard !cached.isInstrumental, cached.syncCheck(duration: track.duration) != .synced,
+        // Aussi les caches faits avant le choix par consensus (revision < 2), une seule fois.
+        let outdated = (cached.revision ?? 0) < Lyrics.currentRevision
+        guard !cached.isInstrumental, outdated || cached.syncCheck(duration: track.duration) != .synced,
               refreshedKeys.insert(key).inserted,
               let fresh = try? await finder.best(for: track),
               fresh.syncCheck(duration: track.duration) == .synced,

@@ -14,6 +14,8 @@ nonisolated struct Lyrics: Codable, Hashable, Sendable {
     let isInstrumental: Bool
     /// Source des paroles (« LRCLIB », « NetEase »…) ; absente des anciens caches.
     var source: String? = nil
+    /// Version de la sélection (2 = choisie par consensus entre versions) ; nil pour les anciens caches.
+    var revision: Int? = nil
 
     var fullText: String { lines.map(\.text).joined(separator: "\n") }
 
@@ -47,7 +49,8 @@ extension Lyrics {
         }
         guard out.count != lines.count else { return self }
         let renumbered = out.enumerated().map { LyricLine(id: $0.offset, time: $0.element.0, text: $0.element.1) }
-        return Lyrics(lines: renumbered, isSynced: isSynced, isInstrumental: isInstrumental, source: source)
+        return Lyrics(lines: renumbered, isSynced: isSynced, isInstrumental: isInstrumental,
+                      source: source, revision: revision)
     }
 }
 
@@ -66,5 +69,29 @@ extension Lyrics {
         if last > duration + 3 { return .tooLong }
         if last < duration * 0.5 { return .endsEarly }
         return .synced
+    }
+}
+
+extension Lyrics {
+    nonisolated static let currentRevision = 2
+
+    /// Horodatages des premières lignes chantées, pour comparer des versions entre elles.
+    nonisolated func leadingTimes(_ count: Int = 15) -> [TimeInterval] {
+        Array(lines.filter { !$0.isBlank }.compactMap(\.time).prefix(count))
+    }
+
+    /// Parmi plusieurs versions synchronisées, celle dont le timing colle le mieux à la majorité :
+    /// un fichier décalé est minoritaire, les copies justes s'accordent entre elles.
+    nonisolated static func consensus(_ candidates: [Lyrics]) -> Lyrics? {
+        let timed = candidates.map { ($0, $0.leadingTimes()) }.filter { $0.1.count >= 4 }
+        guard timed.count >= 3, let n = timed.map({ $0.1.count }).min() else { return nil }
+        let median: [TimeInterval] = (0..<n).map { i in
+            let values = timed.map { $0.1[i] }.sorted()
+            return values[values.count / 2]
+        }
+        func distance(_ times: [TimeInterval]) -> Double {
+            (0..<n).map { abs(times[$0] - median[$0]) }.reduce(0, +) / Double(n)
+        }
+        return timed.min { distance($0.1) < distance($1.1) }?.0
     }
 }

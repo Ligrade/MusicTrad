@@ -88,15 +88,34 @@ private struct Pill<Content: View>: View {
 private struct LanguagePill: View {
     @Environment(AppState.self) private var app
     let language: Locale.Language?
+    @State private var pulsing = false
+
+    /// Clignote doucement tant que la traduction est en cours.
+    private var translating: Bool {
+        switch app.translationStatus {
+        case .translating, .partial: true
+        default: false
+        }
+    }
 
     var body: some View {
+        pill
+            .opacity(pulsing ? 0.35 : 1)
+            .animation(pulsing ? .easeInOut(duration: 0.7).repeatForever() : .easeOut(duration: 0.3), value: pulsing)
+            .onAppear { pulsing = translating }
+            .onChange(of: translating) { _, now in pulsing = now }
+            .help(translating ? "Traduction en cours…" : "")
+    }
+
+    @ViewBuilder
+    private var pill: some View {
         if let language, language.isFrench {
             let active = app.englishRequested
             Button { app.toggleEnglishTranslation() } label: {
                 Pill {
                     Label("FR → EN", systemImage: active ? "character.bubble.fill" : "character.bubble")
                         .monospaced()
-                        .foregroundStyle(active ? Color.black : Color.primary)
+                        .foregroundStyle(translating ? Color.green : active ? Color.black : Color.primary)
                 }
                 .background(Capsule().fill(active ? Color.white : .clear))
                 .contentShape(.capsule)
@@ -108,6 +127,7 @@ private struct LanguagePill: View {
             Pill {
                 Text("\((language?.minimalIdentifier ?? "en").uppercased()) → FR")
                     .monospaced()
+                    .foregroundStyle(translating ? Color.green : Color.primary)   // vert pendant la traduction
             }
             .opacity(language == nil ? 0 : 1)
             .animation(.easeInOut(duration: 0.25), value: language == nil)

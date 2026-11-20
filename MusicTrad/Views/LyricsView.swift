@@ -223,8 +223,6 @@ private struct TranslationBanner: View {
                 }
             } else {
             switch app.translationStatus {
-            case .translating, .partial:
-                HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Traduction en cours…") }
             case .needsDownload(let lang, let target):
                 HStack {
                     Text("Langue « \(lang.displayName) » à télécharger.")
@@ -234,7 +232,7 @@ private struct TranslationBanner: View {
                 }
             case .failed(let msg):
                 Label(msg, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
-            case .idle, .done, .alreadyFrench:
+            case .idle, .done, .alreadyFrench, .translating, .partial:   // l'avancement est sur la pilule de langue
                 EmptyView()
             }
             }

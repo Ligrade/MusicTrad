@@ -18,6 +18,7 @@
 - **Traduit en français** chaque ligne, avec la traduction affichée sous l'original, au fil de l'eau :
   - **Apple** (par défaut) : traduction sur le Mac avec le framework Translation, gratuite, hors ligne et privée ;
   - **DeepL** (option) : avec ta clé API gratuite, rangée dans le Trousseau.
+- **Choisit la bonne version** : quand LRCLIB a plusieurs fichiers synchronisés, l'app garde celui dont le timing s'accorde avec la majorité (les copies décalées sont écartées).
 - **Suit la chanson** : la ligne chantée est mise en avant et la vue défile toute seule. Un clic sur une ligne fait repartir Musique à ce passage.
 - **Vérifie la synchro** : un voyant indique si le timing des paroles colle au morceau, avec un recalage en un clic sur la ligne entendue, un décalage réglable par morceau et le choix d'une autre version ou source.
 - **Marque les passages instrumentaux** : ♪♪♪ qui s'allument au fil du solo, même quand le fichier de paroles ne les indique pas.

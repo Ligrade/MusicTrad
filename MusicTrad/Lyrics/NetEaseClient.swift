@@ -71,7 +71,7 @@ nonisolated struct NetEaseClient: Sendable {
             .enumerated()
             .map { LyricLine(id: $0.offset, time: $0.element.time, text: $0.element.text) }
         guard lines.filter({ !$0.isBlank }).count >= 3 else { return nil }   // « musique pure », vide…
-        return Lyrics(lines: lines, isSynced: true, isInstrumental: false, source: "NetEase")
+        return Lyrics(lines: lines, isSynced: true, isInstrumental: false, source: "NetEase", revision: Lyrics.currentRevision)
     }
 }
 
