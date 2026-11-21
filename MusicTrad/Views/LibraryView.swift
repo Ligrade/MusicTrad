@@ -6,12 +6,22 @@ struct LibraryView: View {
     @State private var entries: [LibraryEntry]?
     @State private var query = ""
     @State private var selected: LibraryEntry?
+    @State private var usedBytes: Int64?
 
     var body: some View {
         ZStack {
             if let selected {
                 LibraryDetail(entry: selected) {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { self.selected = nil }
+                } onDelete: {
+                    Task {
+                        await app.deleteLibraryTranslation(selected)
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) {
+                            entries?.removeAll { $0.id == selected.id }
+                            self.selected = nil
+                        }
+                        usedBytes = await CacheManager.shared.stats().bytes
+                    }
                 }
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             } else {
@@ -24,11 +34,17 @@ struct LibraryView: View {
             // Lecture du cache hors du fil principal (quelques centaines de petits fichiers).
             let loaded = await Task.detached(priority: .userInitiated) { TranslatedLibrary.load() }.value
             withAnimation(.easeOut(duration: 0.2)) { entries = loaded }
+            app.refreshLibraryProtection(loaded)
+            usedBytes = await CacheManager.shared.stats().bytes
         }
     }
 
     private var filtered: [LibraryEntry] {
-        let all = entries ?? []
+        // Favoris en tête, puis les plus récemment écoutés.
+        let all = (entries ?? []).sorted { a, b in
+            let fa = app.libraryFavorites.contains(a.id), fb = app.libraryFavorites.contains(b.id)
+            return fa != fb ? fa : a.lastUsed > b.lastUsed
+        }
         let q = query.trimmingCharacters(in: .whitespaces).normalizedForMatch
         guard !q.isEmpty else { return all }
         return all.filter { "\($0.title) \($0.artist)".normalizedForMatch.contains(q) }
@@ -58,6 +74,7 @@ struct LibraryView: View {
                 .padding(.horizontal, 12)
                 .frame(height: 34)
                 .background(.quaternary, in: .capsule)
+                StorageInfo(usedBytes: usedBytes)
             }
             .padding(.horizontal, 24)
             .padding(.top, 18)
@@ -76,7 +93,8 @@ struct LibraryView: View {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(filtered) { entry in
-                            LibraryRow(entry: entry, isPlaying: isPlaying(entry)) {
+                            LibraryRow(entry: entry, isPlaying: isPlaying(entry),
+                                       isFavorite: app.libraryFavorites.contains(entry.id)) {
                                 withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { selected = entry }
                             }
                         }
@@ -97,6 +115,7 @@ struct LibraryView: View {
 private struct LibraryRow: View {
     let entry: LibraryEntry
     let isPlaying: Bool
+    let isFavorite: Bool
     let action: () -> Void
     @State private var hovering = false
 
@@ -118,6 +137,11 @@ private struct LibraryRow: View {
                     Text(entry.artist).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 8)
+                if isFavorite {
+                    Image(systemName: "heart.fill")
+                        .font(.caption)
+                        .foregroundStyle(LyricsPalette.original)
+                }
                 Text(entry.pair)
                     .font(.caption.monospaced())
                     .foregroundStyle(.secondary)
@@ -140,6 +164,9 @@ private struct LibraryRow: View {
 private struct LibraryDetail: View {
     let entry: LibraryEntry
     let back: () -> Void
+    let onDelete: () -> Void
+    @State private var confirmDelete = false
+    @State private var hoveringTrash = false
     @AppStorage(SettingsKey.fontSize) private var fontSize = SettingsDefault.fontSize
     @AppStorage(SettingsKey.showOriginal) private var showOriginal = true
     @AppStorage(SettingsKey.translationScale) private var translationScale = SettingsDefault.translationScale
@@ -152,9 +179,8 @@ private struct LibraryDetail: View {
                         .font(.callout.weight(.semibold))
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(LyricsPalette.original)
+                .foregroundStyle(.white)
                 Spacer()
-                Text(entry.pair).font(.caption.monospaced()).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 24)
             .padding(.top, 16)
@@ -165,10 +191,30 @@ private struct LibraryDetail: View {
                     HStack(spacing: 10) {
                         Text(entry.title).font(.title2.bold()).lineLimit(2)
                         PlayNowButton(entry: entry)
+                        FavoriteLyricsButton(entry: entry)
                     }
                     Text(entry.artist).font(.title3).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer(minLength: 0)
+                // Langues, et en dessous la corbeille pour supprimer cette traduction.
+                VStack(alignment: .trailing, spacing: 8) {
+                    Text(entry.pair).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    Button { confirmDelete = true } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(hoveringTrash ? LyricsPalette.original : Color.secondary)
+                            .frame(width: 26, height: 22, alignment: .trailing)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hoveringTrash = $0 }
+                    .help("Supprimer cette traduction")
+                    .confirmationDialog("Supprimer la traduction de « \(entry.title) » ?", isPresented: $confirmDelete) {
+                        Button("Supprimer", role: .destructive, action: onDelete)
+                    } message: {
+                        Text("Elle disparaît de la liste et sera refaite à la prochaine écoute.")
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
@@ -212,6 +258,15 @@ private struct LibraryArtwork: View {
     let size: CGFloat
     @State private var image: NSImage?
 
+    /// Pochettes déjà affichées : la page d'un son s'ouvre avec sa pochette, sans clignoter.
+    @MainActor static var memory: [String: NSImage] = [:]
+
+    init(entry: LibraryEntry, size: CGFloat) {
+        self.entry = entry
+        self.size = size
+        _image = State(initialValue: Self.memory[entry.id])
+    }
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.18).fill(Color.white.opacity(0.08))
@@ -227,7 +282,9 @@ private struct LibraryArtwork: View {
         .frame(width: size, height: size)
         .clipShape(.rect(cornerRadius: size * 0.18))
         .task(id: entry.id) {
+            guard image == nil else { return }
             let loaded = await app.libraryArtwork(entry)
+            if let loaded { Self.memory[entry.id] = loaded }
             withAnimation(.easeOut(duration: 0.2)) { image = loaded }
         }
     }
@@ -253,5 +310,90 @@ private struct PlayNowButton: View {
         .onHover { hovering = $0 }
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: hovering)
         .help("Écouter maintenant")
+    }
+}
+
+/// Place restante dans le cache (limite choisie dans les Réglages) et règle de suppression.
+private struct StorageInfo: View {
+    let usedBytes: Int64?
+    // Suivent en direct ce qui est choisi dans Réglages › Cache.
+    @AppStorage(SettingsKey.cacheLimitMB) private var limitMB = CacheManager.defaultLimitMB
+    @AppStorage(SettingsKey.cacheMaxAgeDays) private var days = CacheManager.defaultMaxAgeDays
+
+    var body: some View {
+        let limit = Int64(limitMB > 0 ? limitMB : CacheManager.defaultLimitMB) * 1_000_000
+        let age = CacheManager.maxAgeChoices.first { $0.days == days }?.label ?? "\(days) jours"
+        VStack(alignment: .leading, spacing: 6) {
+            if let usedBytes {
+                ProgressView(value: Double(min(usedBytes, limit)), total: Double(limit))
+                    .tint(LyricsPalette.original)
+                HStack {
+                    SettingsCacheLink("\(Self.format(max(limit - usedBytes, 0))) libres sur \(Self.format(limit))")
+                    Spacer()
+                    SettingsCacheLink(days == 0 ? "Jamais supprimé pour l'âge" : "Supprimé après \(age) sans écoute")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                Label("Les paroles favorites ne sont jamais supprimées.", systemImage: "heart.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    static func format(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+}
+
+/// Cœur à côté du titre : garde ces paroles pour toujours (jamais purgées).
+private struct FavoriteLyricsButton: View {
+    @Environment(AppState.self) private var app
+    let entry: LibraryEntry
+    @State private var taps = 0
+
+    var body: some View {
+        let on = app.libraryFavorites.contains(entry.id)
+        Button {
+            taps += 1
+            withAnimation(.snappy) { app.toggleLibraryFavorite(entry) }
+        } label: {
+            Image(systemName: on ? "heart.fill" : "heart")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(on ? LyricsPalette.original : Color.secondary)
+                .contentTransition(.symbolEffect(.replace))
+                .symbolEffect(.bounce, value: taps)
+                .frame(width: 28, height: 28)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .help(on ? "Retirer des favoris" : "Paroles favorites : jamais supprimées")
+    }
+}
+
+/// Texte souligné au survol ; un clic ouvre Réglages › Cache (et referme la bulle).
+private struct SettingsCacheLink: View {
+    let text: String
+    @Environment(\.openSettings) private var openSettings
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.inMenuBubble) private var inMenuBubble
+    @State private var hovering = false
+
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .underline(hovering)
+            .foregroundStyle(hovering ? Color.primary : Color.secondary)
+            .onHover { hovering = $0 }
+            .onTapGesture {
+                UserDefaults.standard.set("cache", forKey: SettingsKey.settingsTab)
+                if inMenuBubble { dismiss() }
+                openSettings()
+                NSApp.activate()
+            }
+            .pointerStyle(.link)
+            .help("Modifier dans Réglages › Cache")
     }
 }

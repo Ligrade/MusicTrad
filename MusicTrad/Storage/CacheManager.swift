@@ -10,9 +10,9 @@ nonisolated final class CacheManager: @unchecked Sendable {
 
     static let limitChoices = [25, 50, 100, 250, 500]   // Mo
     static let defaultLimitMB = 50
-    /// Durées de conservation sans écoute, en jours (0 = jamais supprimé pour l'âge).
+    /// Durées de conservation sans écoute, en jours (3 mois au plus ; les favoris restent toujours).
     static let maxAgeChoices: [(days: Int, label: String)] = [
-        (30, "1 mois"), (90, "3 mois"), (182, "6 mois"), (365, "1 an"), (0, "Jamais"),
+        (14, "2 semaines"), (30, "1 mois"), (60, "2 mois"), (90, "3 mois"),
     ]
     static let defaultMaxAgeDays = 90
 
@@ -50,6 +50,31 @@ nonisolated final class CacheManager: @unchecked Sendable {
         }
     }
 
+    /// Protège (ou libère) des fichiers précis du cache : paroles favorites de la bibliothèque.
+    func setProtected(_ protected: Bool, song: String, files: [String]) {
+        queue.async {
+            self.loadIfNeeded()
+            if protected {
+                guard self.protectedFiles[song].map(Set.init) != Set(files) else { return }
+                self.protectedFiles[song] = files
+            } else {
+                guard self.protectedFiles.removeValue(forKey: song) != nil else { return }
+            }
+            self.persist()
+        }
+    }
+
+    /// Supprime des fichiers précis du dossier « translations » (traduction refusée depuis la bibliothèque).
+    func removeTranslations(_ files: [String]) async {
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            queue.async {
+                let dir = DiskCache.root.appending(path: "translations", directoryHint: .isDirectory)
+                for name in files { try? FileManager.default.removeItem(at: dir.appending(path: name)) }
+                cont.resume()
+            }
+        }
+    }
+
     // MARK: Nettoyage
 
     func prune(limitMB: Int, maxAgeDays: Int) async -> Stats {
@@ -66,11 +91,19 @@ nonisolated final class CacheManager: @unchecked Sendable {
         }
     }
 
+    /// Vide le cache sauf les fichiers protégés (titres likés dans Musique, paroles favorites).
     func clearAll() async {
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
             queue.async {
-                DiskCache.clearAll()
-                self.protectedFiles = [:]
+                self.loadIfNeeded()
+                let protected = Set(self.protectedFiles.values.flatMap { $0 })
+                let fm = FileManager.default
+                var removed = 0
+                for e in self.scan() where !protected.contains(e.name) {
+                    try? fm.removeItem(at: e.url)
+                    removed += 1
+                }
+                self.log.info("Cache vidé : \(removed) fichier(s) supprimé(s), \(protected.count) protégé(s) gardé(s)")
                 cont.resume()
             }
         }

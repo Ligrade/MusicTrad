@@ -1,5 +1,10 @@
 import SwiftUI
 
+extension EnvironmentValues {
+    /// Vrai dans la bulle de la barre des menus (pour la refermer avant d'ouvrir les Réglages).
+    @Entry var inMenuBubble = false
+}
+
 struct MenuBarContentView: View {
     @Environment(AppState.self) private var app
 
@@ -30,10 +35,14 @@ struct MenuBarContentView: View {
             }
         }
         .background(WindowResizeAnimator(trigger: app.ecoMode))
+        .environment(\.inMenuBubble, true)
         .background(LyricsPalette.background)
         .preferredColorScheme(.dark)
         .onAppear { app.viewAppeared() }
-        .onDisappear { app.viewDisappeared() }
+        .onDisappear {
+            app.viewDisappeared()
+            app.libraryOpen = false   // à la réouverture : directement les paroles en direct
+        }
     }
 }
 

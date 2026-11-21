@@ -10,6 +10,10 @@ nonisolated struct LibraryEntry: Identifiable, Hashable, Sendable {
     let source: String        // code de la langue d'origine (« en », « fr »…)
     let target: String        // code de la langue de traduction
     let lastUsed: Date
+    /// Fichiers du cache de ce son (paroles, traduction, pochette), à protéger s'il est en favori.
+    let files: [String]
+    /// Fichiers de traduction de ce son, toutes versions (pour la supprimer depuis la bibliothèque).
+    var translationFiles: [String]
 
     var pair: String { "\(source.uppercased()) → \(target.uppercased())" }
     var sourceIsFrench: Bool { source == "fr" }
@@ -28,14 +32,17 @@ nonisolated enum TranslatedLibrary {
 
         // Paroles, par libellé « Artiste – Titre ».
         var lyricsByLabel: [String: Lyrics] = [:]
+        var lyricsFile: [String: String] = [:]
         for url in files("lyrics") {
             guard let data = try? Data(contentsOf: url),
                   let entry = try? DiskCache.decoder.decode(CacheEnvelope<Lyrics>.self, from: data),
                   let label = entry.label, !entry.value.isInstrumental, !entry.value.lines.isEmpty else { continue }
             lyricsByLabel[label] = entry.value
+            lyricsFile[label] = url.lastPathComponent
         }
 
         var best: [String: LibraryEntry] = [:]
+        var allTranslations: [String: [String]] = [:]
         for url in files("translations") {
             guard let data = try? Data(contentsOf: url),
                   let entry = try? DiskCache.decoder.decode(CacheEnvelope<[String]>.self, from: data),
@@ -57,19 +64,30 @@ nonisolated enum TranslatedLibrary {
             else { continue }
 
             let separator = base.range(of: " – ")
+            let artist = separator.map { String(base[..<$0.lowerBound]) } ?? ""
+            let title = separator.map { String(base[$0.upperBound...]) } ?? base
             let item = LibraryEntry(
                 id: base,
-                artist: separator.map { String(base[..<$0.lowerBound]) } ?? "",
-                title: separator.map { String(base[$0.upperBound...]) } ?? base,
+                artist: artist,
+                title: title,
                 lyrics: lyrics,
                 translation: entry.value,
                 source: parts[0].lowercased(),
                 target: parts[1].lowercased(),
-                lastUsed: entry.lastUsedAt
+                lastUsed: entry.lastUsedAt,
+                files: [lyricsFile[base], url.lastPathComponent].compactMap { $0 }
+                    + [DiskCache.fileName(for: "library|\(artist)|\(title)")],   // pochette de la bibliothèque
+                translationFiles: []
             )
+            allTranslations[base, default: []].append(url.lastPathComponent)
             if let existing = best[base], existing.lastUsed >= item.lastUsed { continue }
             best[base] = item
         }
-        return best.values.sorted { $0.lastUsed > $1.lastUsed }
+        return best.values.map { entry in
+            var entry = entry
+            entry.translationFiles = allTranslations[entry.id] ?? []
+            return entry
+        }
+        .sorted { $0.lastUsed > $1.lastUsed }
     }
 }

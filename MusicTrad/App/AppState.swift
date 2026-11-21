@@ -104,9 +104,14 @@ final class AppState {
         // Juste après un saut, une lecture partie avant le saut ne doit pas ramener en arrière.
         if sameTrack, Date() < seekGuardUntil, abs(polled - livePosition) > 1 { return }
         if sameTrack, state.isPlaying, anchor.playing {
-            // Petit retard dû à la latence d'AppleScript : on ne recule pas pour si peu.
+            // Petit écart (latence d'AppleScript) : on se rapproche en douceur de la position de Musique,
+            // dans les deux sens. Avant, l'horloge ne reculait jamais et finissait légèrement en avance.
             let estimate = livePosition
-            if polled < estimate, estimate - polled < 0.25 { return }
+            let error = polled - estimate
+            if abs(error) < 0.4 {
+                anchor = (estimate + error * 0.3, Date(), true)
+                return
+            }
         }
         anchor = (polled, Date(), state.isPlaying)
     }
@@ -177,6 +182,51 @@ final class AppState {
     /// Rien en lecture : lance les morceaux likés.
     func playFavorites() {
         Task { await monitor.runner.playFavorites() }
+    }
+
+    /// Paroles favorites de la bibliothèque (« Artiste – Titre ») : jamais supprimées par le nettoyage du cache.
+    private(set) var libraryFavorites = Set(UserDefaults.standard.stringArray(forKey: SettingsKey.libraryFavorites) ?? [])
+
+    func toggleLibraryFavorite(_ entry: LibraryEntry) {
+        let on = !libraryFavorites.contains(entry.id)
+        if on { libraryFavorites.insert(entry.id) } else { libraryFavorites.remove(entry.id) }
+        UserDefaults.standard.set(Array(libraryFavorites).sorted(), forKey: SettingsKey.libraryFavorites)
+        CacheManager.shared.setProtected(on, song: "library|\(entry.id)", files: entry.files)
+    }
+
+    /// Son en cours dans les paroles favorites (cœur à côté de l'étoile) ?
+    var currentLyricsFavorited: Bool {
+        guard let track else { return false }
+        return libraryFavorites.contains("\(track.artist) – \(track.title)")
+    }
+
+    /// Cœur : garde pour toujours les paroles, la traduction et la pochette du son en cours.
+    func toggleCurrentLyricsFavorite() {
+        guard let track, let lyrics, !lyrics.isInstrumental else { return }
+        let id = "\(track.artist) – \(track.title)"
+        let on = !libraryFavorites.contains(id)
+        if on { libraryFavorites.insert(id) } else { libraryFavorites.remove(id) }
+        UserDefaults.standard.set(Array(libraryFavorites).sorted(), forKey: SettingsKey.libraryFavorites)
+        let keys = [Self.lyricsKey(track), Self.translationKey(track, lyrics, engine, translationTarget),
+                    "\(track.artist)|\(track.album)", "library|\(track.artist)|\(track.title)"]
+        CacheManager.shared.setProtected(on, song: "library|\(id)", files: keys.map(DiskCache.fileName(for:)))
+    }
+
+    /// Poubelle de la bibliothèque : supprime la traduction de ce son (et le retire des favoris).
+    /// Elle sera refaite à la prochaine écoute.
+    func deleteLibraryTranslation(_ entry: LibraryEntry) async {
+        if libraryFavorites.remove(entry.id) != nil {
+            UserDefaults.standard.set(Array(libraryFavorites).sorted(), forKey: SettingsKey.libraryFavorites)
+            CacheManager.shared.setProtected(false, song: "library|\(entry.id)", files: [])
+        }
+        await CacheManager.shared.removeTranslations(entry.translationFiles)
+    }
+
+    /// Remet à jour la protection des favoris (les fichiers changent si un son est retraduit).
+    func refreshLibraryProtection(_ entries: [LibraryEntry]) {
+        for entry in entries where libraryFavorites.contains(entry.id) {
+            CacheManager.shared.setProtected(true, song: "library|\(entry.id)", files: entry.files)
+        }
     }
 
     /// Pochette d'un son de la bibliothèque des traductions.
@@ -407,7 +457,6 @@ final class AppState {
         versions = []
         versionInfo = nil
         calibrating = false
-        englishRequested = false
         songOffset = state.track.map(Self.savedSongOffset) ?? 0
         artworkTask?.cancel()
         if let track = state.track {
@@ -513,19 +562,33 @@ final class AppState {
         case translated([String])
     }
 
-    /// Chanson en français : traduction en anglais seulement à la demande (pilule FR → EN).
-    private(set) var englishRequested = false
+
+    /// Pilule « EN → FR » barrée : aucune traduction, paroles originales seules (re-clic : on retraduit).
+    private(set) var translationHidden = UserDefaults.standard.bool(forKey: SettingsKey.translationHidden)
+
+    func toggleTranslationHidden() {
+        translationHidden.toggle()
+        UserDefaults.standard.set(translationHidden, forKey: SettingsKey.translationHidden)
+        if translationHidden {
+            // Arrête une traduction en cours (seulement si les paroles sont déjà là, pour ne pas couper leur chargement).
+            if lyrics != nil { loadTask?.cancel() }
+            if sourceLanguage?.isFrench != true { translationStatus = .idle }
+        } else {
+            retranslate()
+        }
+    }
 
     /// Bibliothèque des sons déjà traduits (pilule disque dur) : remplace les paroles par la liste.
     var libraryOpen = false
 
     /// Langue vers laquelle on traduit le morceau en cours.
     var translationTarget: Locale.Language {
-        sourceLanguage?.isFrench == true && englishRequested ? .english : .french
+        sourceLanguage?.isFrench == true && Preferences.frenchToEnglish ? .english : .french
     }
 
-    func toggleEnglishTranslation() {
-        englishRequested.toggle()
+    /// Réglage « chansons en français → anglais » changé : on retraduit si le son en cours est en français.
+    func frenchToEnglishChanged() {
+        guard sourceLanguage?.isFrench == true else { return }
         retranslate()
     }
 
@@ -534,6 +597,11 @@ final class AppState {
         let engine = self.engine
         sourceLanguage = LanguageDetector.detect(lyrics.fullText)
         let target = translationTarget
+        // Traduction désactivée (pilule barrée) : rien à faire pour une chanson étrangère.
+        if translationHidden, sourceLanguage?.isFrench != true {
+            translationStatus = .idle
+            return
+        }
         if let cached = translationCache.load([String].self, key: Self.translationKey(track, lyrics, engine, target)),
            cached.count == lyrics.lines.count {
             translationStatus = .done(cached)
@@ -629,6 +697,7 @@ final class AppState {
                     Self.log.info("Préchargement : pas de paroles pour « \(next.title, privacy: .public) »")
                     return
                 }
+                if self.translationHidden { return }   // traduction désactivée : paroles seulement
                 _ = try await fetchTranslation(next, lyrics: lyrics, engine: engine)
                 Self.log.info("Préchargement terminé : « \(next.title, privacy: .public) » est en cache")
             } catch {

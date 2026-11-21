@@ -42,6 +42,7 @@ struct TrackHeader: View {
                         HStack(spacing: 8) {
                             Text(t.title).font(.title2.bold()).lineLimit(1)
                             FavoriteButton()
+                            LyricsFavoriteButton()
                         }
                         Text(t.artist).font(.title3).foregroundStyle(.secondary).lineLimit(1)
                             .underline(hoveringArtist)      // souligné au survol, comme un lien
@@ -85,9 +86,8 @@ private struct Pill<Content: View>: View {
     }
 }
 
-/// « EN → FR » pour une chanson étrangère. Pour une chanson en français, devient un bouton
-/// « FR → EN » qui traduit en anglais seulement au clic (re-clic : on revient sans traduction).
-/// Garde toujours sa place pour ne rien décaler.
+/// « EN → FR » pour une chanson étrangère : un clic coupe la traduction (pilule barrée), un autre la relance.
+/// Rien pour une chanson en français.
 private struct LanguagePill: View {
     @Environment(AppState.self) private var app
     let language: Locale.Language?
@@ -113,25 +113,25 @@ private struct LanguagePill: View {
     @ViewBuilder
     private var pill: some View {
         if let language, language.isFrench {
-            let active = app.englishRequested
-            Button { app.toggleEnglishTranslation() } label: {
+            // Chanson en français : pas de pilule (la traduction en anglais se règle dans les Réglages).
+            EmptyView()
+        } else {
+            // Clic : masque la traduction (paroles originales seules) ; re-clic : elle revient.
+            let hidden = app.translationHidden
+            Button { app.toggleTranslationHidden() } label: {
                 Pill {
-                    Label("FR → EN", systemImage: active ? "character.bubble.fill" : "character.bubble")
+                    Text("\((language?.minimalIdentifier ?? "en").uppercased()) → FR")
                         .monospaced()
-                        .foregroundStyle(translating ? Color.green : active ? Color.black : Color.primary)
+                        .strikethrough(hidden)
+                        // vert pendant la traduction, estompé quand elle est masquée
+                        .foregroundStyle(translating ? Color.green : hidden ? Color.secondary : Color.primary)
                 }
-                .background(Capsule().fill(active ? Color.white : .clear))
                 .contentShape(.capsule)
             }
             .buttonStyle(.plain)
-            .help(active ? "Masquer la traduction anglaise" : "Traduire les paroles en anglais")
-            .animation(.snappy, value: active)
-        } else {
-            Pill {
-                Text("\((language?.minimalIdentifier ?? "en").uppercased()) → FR")
-                    .monospaced()
-                    .foregroundStyle(translating ? Color.green : Color.primary)   // vert pendant la traduction
-            }
+            .disabled(language == nil)
+            .help(hidden ? "Afficher la traduction" : "Masquer la traduction")
+            .animation(.snappy, value: hidden)
             .opacity(language == nil ? 0 : 1)
             .animation(.easeInOut(duration: 0.25), value: language == nil)
         }
@@ -225,6 +225,37 @@ private struct ArtworkView: View {
         }
         .frame(width: size, height: size)
         .clipShape(.rect(cornerRadius: size * 0.14))
+    }
+}
+
+/// Cœur à côté de l'étoile : garde la traduction de ce son pour toujours (pilule disque, jamais supprimée).
+private struct LyricsFavoriteButton: View {
+    @Environment(AppState.self) private var app
+    @State private var taps = 0
+
+    private var available: Bool {
+        if case .loaded(let lyrics) = app.lyricsStatus { return !lyrics.isInstrumental }
+        return false
+    }
+
+    var body: some View {
+        let on = app.currentLyricsFavorited
+        Button {
+            taps += 1
+            withAnimation(.snappy) { app.toggleCurrentLyricsFavorite() }
+        } label: {
+            Image(systemName: on ? "heart.fill" : "heart")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(on ? LyricsPalette.original : Color.white)
+                .contentTransition(.symbolEffect(.replace))
+                .symbolEffect(.bounce, value: taps)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .opacity(available ? 1 : 0.3)
+        .disabled(!available)
+        .id(app.track?.id)
+        .help(on ? "Retirer des paroles favorites" : "Sauver cette traduction (jamais supprimée)")
     }
 }
 

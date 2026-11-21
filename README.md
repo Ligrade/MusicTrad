@@ -23,10 +23,11 @@
 - **Vérifie la synchro** : un voyant indique si le timing des paroles colle au morceau, avec un recalage en un clic sur la ligne entendue, un décalage réglable par morceau et le choix d'une autre version ou source.
 - **Marque les passages instrumentaux** : ♪♪♪ qui s'allument au fil du solo, même quand le fichier de paroles ne les indique pas.
 - **Prépare le morceau suivant** à l'avance (playlist en cours, ou titre suivant de l'album via l'API publique Deezer).
-- **Chanson en français** : pas de traduction par défaut ; la pilule **FR → EN** la traduit en anglais à la demande (le français reste en blanc, l'anglais passe en rouge).
-- Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), l'**artiste** (un clic ouvre sa page dans Musique), une **étoile favori** synchronisée avec Musique, les commandes **⏮ ⏯ ⏭** et le choix de la **sortie AirPlay**.
+- **Chanson en français** : pas de traduction par défaut ; un réglage permet de la traduire en anglais (le français reste en blanc, l'anglais passe en rouge).
+- **Pilule EN → FR** : un clic coupe la traduction (paroles originales seules, rien n'est traduit), un autre la relance ; le choix est retenu.
+- Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), l'**artiste** (un clic ouvre sa page dans Musique), une **étoile favori** synchronisée avec Musique, un **cœur** pour sauver la traduction du son (jamais supprimée), les commandes **⏮ ⏯ ⏭** et le choix de la **sortie AirPlay**.
 - **Musique fermée ou à l'arrêt** : un bouton rouge ♫ ouvre Musique ; sans lecture en cours, **Ma station** (ta station personnelle, lien à coller dans les Réglages) ou **Mes likes** (tes morceaux préférés).
-- **Sons déjà traduits** (pilule 💽 à côté de la langue) : la liste des morceaux traduits avec leurs pochettes et une recherche ; un clic pour relire paroles et traduction, ▶︎ pour l'écouter tout de suite.
+- **Sons déjà traduits** (pilule 💽 à côté de la langue) : la liste des morceaux traduits avec leurs pochettes et une recherche ; un clic pour relire paroles et traduction, ▶︎ pour l'écouter tout de suite, ♥ pour garder ces paroles pour toujours (jamais supprimées du cache). La place restante et la règle de suppression sont affichées en haut.
 - Garde paroles et traductions en **cache**, avec un nettoyage automatique.
 - **Mode éco** (🍃 en haut à droite, automatique après 30 min sans ouvrir l'app par défaut) : l'app reste dans la barre des menus (bulle avec une petite feuille) mais ne consomme plus rien ; la bulle devient un petit carré avec un bouton vert pour la réactiver. En marche, bulle fermée, elle tourne autour de 1 % de CPU.
 
@@ -73,8 +74,8 @@ tccutil reset AppleEvents fr.dynamicagence.MusicTrad
 |---|---|
 | **Général** | Ouverture à la connexion, démarrage en mode éco, lien de « Ma station », fenêtre flottante (désactivée par défaut, toujours au premier plan, bouton dans la pilule du haut), accès à Musique |
 | **Affichage** | Taille des paroles et de la traduction, paroles originales oui/non, flou des lignes inactives, aperçu, décalage de synchronisation |
-| **Traduction** | Moteur Apple ou DeepL, préparation du morceau suivant, clé DeepL avec test et consommation du mois |
-| **Cache** | Espace utilisé, taille maximale (50 Mo par défaut), suppression après 3 mois sans écoute, ouverture dans le Finder, vidage |
+| **Traduction** | Moteur Apple ou DeepL, préparation du morceau suivant, chansons en français traduites en anglais, clé DeepL avec test et consommation du mois |
+| **Cache** | Espace utilisé, taille maximale (50 Mo par défaut), suppression après 2 semaines à 3 mois sans écoute (3 mois par défaut, favoris jamais supprimés), ouverture dans le Finder, vidage |
 
 ## Cache
 

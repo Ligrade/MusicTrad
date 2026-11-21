@@ -8,13 +8,16 @@ struct SettingsView: View {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
     }
 
+    /// Onglet affiché (un lien de la bulle peut ouvrir directement « Cache »).
+    @AppStorage(SettingsKey.settingsTab) private var tab = "general"
+
     var body: some View {
         VStack(spacing: 0) {
-            TabView {
-                Tab("Général", systemImage: "gearshape") { GeneralSettings() }
-                Tab("Affichage", systemImage: "textformat.size") { DisplaySettings() }
-                Tab("Traduction", systemImage: "character.bubble") { TranslationSettings() }
-                Tab("Cache", systemImage: "internaldrive") { CacheSettings() }
+            TabView(selection: $tab) {
+                Tab("Général", systemImage: "gearshape", value: "general") { GeneralSettings() }
+                Tab("Affichage", systemImage: "textformat.size", value: "display") { DisplaySettings() }
+                Tab("Traduction", systemImage: "character.bubble", value: "translation") { TranslationSettings() }
+                Tab("Cache", systemImage: "internaldrive", value: "cache") { CacheSettings() }
             }
             Text("MusicTrad · Version \(Self.version) by Ligrade")
                 .font(.caption)
@@ -172,6 +175,7 @@ private struct TranslationSettings: View {
     @Environment(AppState.self) private var app
     @AppStorage(SettingsKey.engine) private var engine = TranslationEngine.apple
     @AppStorage(SettingsKey.prefetchNext) private var prefetchNext = true
+    @AppStorage(SettingsKey.frenchToEnglish) private var frenchToEnglish = false
 
     @State private var apiKey = ""
     @State private var hasKey = KeychainStore.load() != nil
@@ -187,6 +191,8 @@ private struct TranslationSettings: View {
                 }
                 .pickerStyle(.radioGroup)
                 Toggle("Préparer le morceau suivant à l'avance", isOn: $prefetchNext)
+                Toggle("Traduire les chansons en français en anglais", isOn: $frenchToEnglish)
+                    .onChange(of: frenchToEnglish) { app.frenchToEnglishChanged() }
             } header: {
                 Text("Traduction")
             } footer: {
@@ -323,7 +329,7 @@ private struct CacheSettings: View {
         .task { stats = await CacheManager.shared.stats() }
         .onChange(of: cacheLimitMB) { Task { await prune() } }
         .onChange(of: cacheMaxAgeDays) { Task { await prune() } }
-        .confirmationDialog("Vider tout le cache ?", isPresented: $confirmClear) {
+        .confirmationDialog("Vider le cache ?", isPresented: $confirmClear) {
             Button("Vider", role: .destructive) {
                 Task {
                     await CacheManager.shared.clearAll()
@@ -331,7 +337,7 @@ private struct CacheSettings: View {
                 }
             }
         } message: {
-            Text("Paroles, traductions et pochettes seront supprimées, favoris compris. Elles seront récupérées à nouveau à la prochaine écoute.")
+            Text("Paroles, traductions et pochettes seront supprimées, sauf les titres likés et les paroles favorites. Le reste sera récupéré à nouveau à la prochaine écoute.")
         }
     }
 
