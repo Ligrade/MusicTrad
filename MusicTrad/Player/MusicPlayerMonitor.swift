@@ -1,29 +1,78 @@
 import AppKit
 import Foundation
 
-/// Interroge l'app Musique par AppleScript toutes les 0,5 s.
+/// Lit l'état de l'app Musique par AppleScript.
+/// Paroles affichées : toutes les 0,5 s. Rien à l'écran : Musique prévient elle-même
+/// (notification « playerInfo » à chaque lecture, pause, arrêt ou changement de morceau) ;
+/// on ne relit alors qu'à ce moment-là, plus une fois par minute par sécurité.
 final class MusicPlayerMonitor {
     var onUpdate: ((PlaybackState) -> Void)?
     private var task: Task<Void, Never>?
     let runner = AppleScriptRunner()
-    /// 0,5 s quand les paroles sont affichées, plus lent en arrière-plan.
-    var interval: Duration = .milliseconds(500)
+    private var observer: MusicNotificationObserver?
+    /// Vrai quand la bulle ou la fenêtre flottante est à l'écran.
+    private(set) var isVisible = false
+
+    /// Rythme de lecture : rapide quand les paroles sont affichées, filet de sécurité sinon.
+    private var interval: Duration { isVisible ? .milliseconds(500) : .seconds(60) }
 
     func start() {
         guard task == nil else { return }
-        task = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self else { return }
-                let state = await self.runner.poll()
-                self.onUpdate?(state)
-                try? await Task.sleep(for: self.interval)
-            }
-        }
+        observer = MusicNotificationObserver(
+            onChange: { [weak self] in self?.pollNow() },
+            onQuit: { [weak self] in
+                // Pas de relecture : « tell application "Music" » relancerait l'app.
+                guard let self, self.task != nil else { return }
+                self.onUpdate?(.musicNotRunning)
+            })
+        restartLoop()
     }
 
     func stop() {
+        observer?.invalidate()
+        observer = nil
         task?.cancel()
         task = nil
+        polling = false
+        pendingPoll = false
+    }
+
+    /// Paroles affichées ou non : à l'ouverture, lecture immédiate puis toutes les 0,5 s.
+    /// En passant en arrière-plan, la boucle finit son attente de 0,5 s puis ralentit d'elle-même.
+    func setVisible(_ visible: Bool) {
+        guard visible != isVisible else { return }
+        isVisible = visible
+        if visible { pollNow() }
+    }
+
+    /// Relit Musique tout de suite (notification reçue, vue ouverte…) puis reprend le rythme normal.
+    func pollNow() {
+        guard task != nil else { return }   // arrêté (mode éco) : on ignore
+        // Musique envoie souvent plusieurs notifications d'affilée : une seule relecture de plus suffit.
+        if polling { pendingPoll = true } else { restartLoop() }
+    }
+
+    /// Lecture AppleScript en cours, et relecture demandée pendant celle-ci.
+    private var polling = false
+    private var pendingPoll = false
+
+    private func restartLoop() {
+        task?.cancel()
+        polling = false
+        pendingPoll = false
+        task = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                self.pendingPoll = false
+                self.polling = true
+                let state = await self.runner.poll()
+                guard !Task.isCancelled else { return }   // arrêtée ou relancée entre-temps
+                self.polling = false
+                self.onUpdate?(state)
+                if self.pendingPoll { continue }
+                try? await Task.sleep(for: self.interval)
+            }
+        }
     }
 
     /// Envoie une commande à Musique puis relit l'état aussitôt.
@@ -33,6 +82,50 @@ final class MusicPlayerMonitor {
             await self.runner.run(command)
             self.onUpdate?(await self.runner.poll())
         }
+    }
+}
+
+/// Écoute Musique sans l'interroger : notification « playerInfo » (lecture, pause, morceau…)
+/// et lancement / fermeture de l'app.
+private final class MusicNotificationObserver: NSObject {
+    private static let bundleID = "com.apple.Music"
+    private let onChange: () -> Void
+    private let onQuit: () -> Void
+
+    init(onChange: @escaping () -> Void, onQuit: @escaping () -> Void) {
+        self.onChange = onChange
+        self.onQuit = onQuit
+        super.init()
+        // `.deliverImmediately` : une app de barre des menus est presque toujours inactive,
+        // et la livraison serait sinon retardée jusqu'à ce qu'elle redevienne active.
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(playerInfo(_:)),
+            name: Notification.Name("com.apple.Music.playerInfo"), object: nil,
+            suspensionBehavior: .deliverImmediately)
+        let workspace = NSWorkspace.shared.notificationCenter
+        workspace.addObserver(self, selector: #selector(launched(_:)),
+                              name: NSWorkspace.didLaunchApplicationNotification, object: nil)
+        workspace.addObserver(self, selector: #selector(terminated(_:)),
+                              name: NSWorkspace.didTerminateApplicationNotification, object: nil)
+    }
+
+    func invalidate() {
+        DistributedNotificationCenter.default().removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
+    }
+
+    private static func isMusic(_ note: Notification) -> Bool {
+        (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier == bundleID
+    }
+
+    @objc private func playerInfo(_ note: Notification) { onChange() }
+
+    @objc private func launched(_ note: Notification) {
+        if Self.isMusic(note) { onChange() }
+    }
+
+    @objc private func terminated(_ note: Notification) {
+        if Self.isMusic(note) { onQuit() }
     }
 }
 

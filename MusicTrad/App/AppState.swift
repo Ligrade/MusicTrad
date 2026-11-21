@@ -79,13 +79,17 @@ final class AppState {
     func viewAppeared() {
         visibleViews += 1
         lastUse = .now
-        monitor.interval = .milliseconds(500)
+        guard visibleViews == 1, !ecoMode else { return }
+        // Première vue ouverte : relecture immédiate de Musique et horloge réveillée tout de suite.
+        monitor.setVisible(true)
+        startTicker()
     }
 
     func viewDisappeared() {
         visibleViews = max(0, visibleViews - 1)
         lastUse = .now
-        if visibleViews == 0 { monitor.interval = .milliseconds(1500) }
+        // Plus rien à l'écran : Musique n'est relue qu'à ses notifications (l'horloge ralentit seule).
+        if visibleViews == 0 { monitor.setVisible(false) }
     }
 
     /// Dernière position lue dans Musique et l'instant de la lecture.
@@ -346,7 +350,6 @@ final class AppState {
         artworkService = ArtworkService(runner: monitor.runner)
         nextTrackPredictor = NextTrackPredictor(runner: monitor.runner)
         monitor.onUpdate = { [weak self] state in self?.handle(state) }
-        monitor.interval = .milliseconds(1500)
         if !ecoMode { startWork() }
         // Nettoyage du cache au lancement puis une fois par jour.
         maintenanceTask = Task {
@@ -387,7 +390,14 @@ final class AppState {
     }
 
     private func startWork() {
+        monitor.setVisible(visibleViews > 0)
         monitor.start()
+        startTicker()
+    }
+
+    /// Horloge locale des paroles : 50 ms en lecture synchronisée affichée, 500 ms à l'écran,
+    /// 30 s quand rien n'est affiché (juste pour la mise en veille automatique).
+    private func startTicker() {
         ticker?.cancel()
         ticker = Task { [weak self] in
             while !Task.isCancelled {
@@ -398,9 +408,14 @@ final class AppState {
                     self.setEcoMode(true)
                     return
                 }
+                guard self.visibleViews > 0 else {
+                    // Rien à l'écran : inutile de suivre la ligne chantée (réveil par viewAppeared).
+                    try? await Task.sleep(for: .seconds(30))
+                    continue
+                }
                 self.refreshCurrentLine()
                 // 20 fois par seconde seulement quand on regarde des paroles synchronisées.
-                let fast = self.visibleViews > 0 && self.playback.isPlaying && self.lyrics?.isSynced == true
+                let fast = self.playback.isPlaying && self.lyrics?.isSynced == true
                 try? await Task.sleep(for: .milliseconds(fast ? 50 : 500))
             }
         }
