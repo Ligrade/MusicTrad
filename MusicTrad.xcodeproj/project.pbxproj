@@ -34,6 +34,7 @@
 		AC558295310E1379B7F6CB1A /* AppleTranslator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69A60AB00114C71866DAF710 /* AppleTranslator.swift */; };
 		C45801759D6A5A17DC29BB7B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E15538E5992BFEF29BD502EA /* SettingsView.swift */; };
 		CB821913049185858CDD487A /* PlaybackControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69E4359662D700D4FAE17BE6 /* PlaybackControls.swift */; };
+		D688D8FD5BC61FA6F394968D /* LibraryIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67744D99E9806154E96CC650 /* LibraryIndex.swift */; };
 		F3ADC1C81F2965BA0F3C6320 /* DeepLTranslator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC702325C4ADFEF16E51192 /* DeepLTranslator.swift */; };
 		F9A14320438DDE4B426A0403 /* CacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09E80FA1D98DF0966A7C035D /* CacheManager.swift */; };
 /* End PBXBuildFile section */
@@ -51,6 +52,7 @@
 		510F9B4BA57705BB302C0AD0 /* TrackInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackInfo.swift; sourceTree = "<group>"; };
 		550B72EA48A73C8B2EB9E2CA /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		6276EC57A2480F91E3039A68 /* LRCParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LRCParser.swift; sourceTree = "<group>"; };
+		67744D99E9806154E96CC650 /* LibraryIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryIndex.swift; sourceTree = "<group>"; };
 		69013B4C4AAE2C023D3D8862 /* FloatingWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FloatingWindowView.swift; sourceTree = "<group>"; };
 		69A60AB00114C71866DAF710 /* AppleTranslator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleTranslator.swift; sourceTree = "<group>"; };
 		69E4359662D700D4FAE17BE6 /* PlaybackControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackControls.swift; sourceTree = "<group>"; };
@@ -109,6 +111,7 @@
 				09E80FA1D98DF0966A7C035D /* CacheManager.swift */,
 				DF8C41447C9D845BA6895824 /* DiskCache.swift */,
 				C8B653C3241ED6DA8F980A03 /* KeychainStore.swift */,
+				67744D99E9806154E96CC650 /* LibraryIndex.swift */,
 				4024D3482A1CAB4C51946A7D /* TranslatedLibrary.swift */,
 			);
 			path = Storage;
@@ -259,6 +262,7 @@
 				A68FD25CEB1B66BF6F80E250 /* KeychainStore.swift in Sources */,
 				5FCCAED396D93E9B0396FFD8 /* LRCLIBClient.swift in Sources */,
 				577E99FF61E983DFCD2D7DAC /* LRCParser.swift in Sources */,
+				D688D8FD5BC61FA6F394968D /* LibraryIndex.swift in Sources */,
 				018A31445E8DD32512C82546 /* LibraryView.swift in Sources */,
 				911AA5D7EEBD23F03C83AAAE /* LyricsModels.swift in Sources */,
 				0DB717F79BCD8B8B9F0FDDCA /* LyricsView.swift in Sources */,

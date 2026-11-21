@@ -1,93 +1,72 @@
 import Foundation
 
-/// Un son déjà traduit, retrouvé dans le cache : paroles + traduction alignées ligne à ligne.
+/// Un son déjà traduit, tel que listé par l'index de la bibliothèque (sans le texte, lu à l'ouverture).
 nonisolated struct LibraryEntry: Identifiable, Hashable, Sendable {
     let id: String            // « Artiste – Titre »
     let artist: String
     let title: String
-    let lyrics: Lyrics
-    let translation: [String]
+    let album: String?
     let source: String        // code de la langue d'origine (« en », « fr »…)
     let target: String        // code de la langue de traduction
     let lastUsed: Date
-    /// Fichiers du cache de ce son (paroles, traduction, pochette), à protéger s'il est en favori.
-    let files: [String]
+    /// Fichier des paroles et de la traduction affichée (la plus récemment écoutée).
+    let lyricsFile: String
+    let translationFile: String
     /// Fichiers de traduction de ce son, toutes versions (pour la supprimer depuis la bibliothèque).
-    var translationFiles: [String]
+    let translationFiles: [String]
+
+    /// Fichiers du cache de ce son (paroles, traduction, pochette), à protéger s'il est en favori.
+    var files: [String] {
+        [lyricsFile, translationFile, DiskCache.fileName(for: "library|\(artist)|\(title)")]   // pochette de la bibliothèque
+    }
 
     var pair: String { "\(Locale.Language.pillCode(source)) → \(Locale.Language.pillCode(target))" }
     var sourceIsFrench: Bool { source == "fr" }
+
+    init?(record: LibraryIndex.Record) {
+        guard let best = record.best else { return nil }
+        id = record.id
+        artist = record.artist
+        title = record.title
+        album = record.album
+        source = best.source
+        target = best.target
+        lastUsed = best.lastUsed
+        lyricsFile = record.lyricsFile
+        translationFile = best.file
+        translationFiles = record.translations.map(\.file)
+    }
 }
 
-/// Bibliothèque des sons traduits, reconstruite à partir des dossiers « lyrics » et « translations » du cache.
-/// Lecture seule : n'écrit rien et ne touche pas aux dates d'écoute.
+/// Paroles et traduction d'un son de la bibliothèque, alignées ligne à ligne.
+nonisolated struct LibraryContent: Sendable {
+    let lyrics: Lyrics
+    let translation: [String]
+}
+
 nonisolated enum TranslatedLibrary {
-    static func load() -> [LibraryEntry] {
-        let fm = FileManager.default
-        func files(_ folder: String) -> [URL] {
-            let dir = DiskCache.root.appending(path: folder, directoryHint: .isDirectory)
-            return (try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil))?
-                .filter { $0.pathExtension == "json" } ?? []
-        }
+    /// Les paroles que suit cette traduction : avec les pauses « ♪ » ajoutées (ou, pour les anciens caches, sans).
+    /// Nil si elles ne correspondent pas (ou si rien n'est traduit).
+    static func aligned(_ raw: Lyrics, _ translation: [String]) -> Lyrics? {
+        guard !raw.isInstrumental, !raw.lines.isEmpty, translation.contains(where: { !$0.isEmpty }) else { return nil }
+        let withBreaks = raw.withInstrumentalBreaks()
+        if translation.count == withBreaks.lines.count { return withBreaks }
+        if translation.count == raw.lines.count { return raw }
+        return nil
+    }
 
-        // Paroles, par libellé « Artiste – Titre ».
-        var lyricsByLabel: [String: Lyrics] = [:]
-        var lyricsFile: [String: String] = [:]
-        for url in files("lyrics") {
-            guard let data = try? Data(contentsOf: url),
-                  let entry = try? DiskCache.decoder.decode(CacheEnvelope<Lyrics>.self, from: data),
-                  let label = entry.label, !entry.value.isInstrumental, !entry.value.lines.isEmpty else { continue }
-            lyricsByLabel[label] = entry.value
-            lyricsFile[label] = url.lastPathComponent
+    /// Lit les paroles et la traduction d'un son (hors du fil principal).
+    /// Lecture seule : ne touche pas aux dates d'écoute.
+    @concurrent
+    static func content(for entry: LibraryEntry, root: URL = DiskCache.root) async -> LibraryContent? {
+        func read<T: Codable>(_ type: T.Type, _ folder: String, _ name: String) -> T? {
+            let url = root.appending(path: folder, directoryHint: .isDirectory).appending(path: name)
+            return (try? Data(contentsOf: url))
+                .flatMap { try? DiskCache.decoder.decode(CacheEnvelope<T>.self, from: $0) }?.value
         }
-
-        var best: [String: LibraryEntry] = [:]
-        var allTranslations: [String: [String]] = [:]
-        for url in files("translations") {
-            guard let data = try? Data(contentsOf: url),
-                  let entry = try? DiskCache.decoder.decode(CacheEnvelope<[String]>.self, from: data),
-                  let label = entry.label,
-                  let open = label.range(of: " [", options: .backwards), label.hasSuffix("]") else { continue }
-            let base = String(label[..<open.lowerBound])
-            // « apple, en → fr »
-            let meta = label[open.upperBound...].dropLast()
-            let languages = meta.split(separator: ",").last?.trimmingCharacters(in: .whitespaces) ?? ""
-            let parts = languages.components(separatedBy: " → ")
-            guard parts.count == 2, let raw = lyricsByLabel[base],
-                  entry.value.contains(where: { !$0.isEmpty }) else { continue }
-
-            // La traduction suit les paroles avec les pauses « ♪ » ajoutées (ou, pour les anciens caches, sans).
-            let withBreaks = raw.withInstrumentalBreaks()
-            let lyrics: Lyrics
-            if entry.value.count == withBreaks.lines.count { lyrics = withBreaks }
-            else if entry.value.count == raw.lines.count { lyrics = raw }
-            else { continue }
-
-            let separator = base.range(of: " – ")
-            let artist = separator.map { String(base[..<$0.lowerBound]) } ?? ""
-            let title = separator.map { String(base[$0.upperBound...]) } ?? base
-            let item = LibraryEntry(
-                id: base,
-                artist: artist,
-                title: title,
-                lyrics: lyrics,
-                translation: entry.value,
-                source: parts[0].lowercased(),
-                target: parts[1].lowercased(),
-                lastUsed: entry.lastUsedAt,
-                files: [lyricsFile[base], url.lastPathComponent].compactMap { $0 }
-                    + [DiskCache.fileName(for: "library|\(artist)|\(title)")],   // pochette de la bibliothèque
-                translationFiles: []
-            )
-            allTranslations[base, default: []].append(url.lastPathComponent)
-            if let existing = best[base], existing.lastUsed >= item.lastUsed { continue }
-            best[base] = item
-        }
-        return best.values.map { entry in
-            var entry = entry
-            entry.translationFiles = allTranslations[entry.id] ?? []
-            return entry
-        }
-        .sorted { $0.lastUsed > $1.lastUsed }
+        guard let raw = read(Lyrics.self, "lyrics", entry.lyricsFile),
+              let translation = read([String].self, "translations", entry.translationFile),
+              let lyrics = aligned(raw, translation) else { return nil }
+        return LibraryContent(lyrics: lyrics, translation: translation)
     }
 }
