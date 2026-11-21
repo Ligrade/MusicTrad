@@ -24,6 +24,9 @@ targets:
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.music
         NSAppleEventsUsageDescription: "MusicTrad lit le titre et la position de lecture dans Musique pour afficher et traduire les paroles."
+    scheme:
+      testTargets:
+        - MusicTradTests
     entitlements:
       path: MusicTrad/MusicTrad.entitlements
       properties:
@@ -39,3 +42,20 @@ targets:
         ENABLE_APP_SANDBOX: NO
         GENERATE_INFOPLIST_FILE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  # Tests des parties pures (sans lancer l'app) : les fichiers testés sont compilés dans le bundle.
+  MusicTradTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: MusicTradTests
+      - path: MusicTrad/Lyrics/LRCParser.swift
+      - path: MusicTrad/Lyrics/LyricsModels.swift
+      - path: MusicTrad/Storage/CachePruning.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: fr.dynamicagence.MusicTradTests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        DEVELOPMENT_TEAM: ""

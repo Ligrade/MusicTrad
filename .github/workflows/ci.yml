@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Compilation et tests
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version de Xcode
+        run: xcodebuild -version
+
+      - name: Installer XcodeGen
+        run: brew install xcodegen
+
+      - name: Générer le projet Xcode
+        run: xcodegen generate
+
+      - name: Compiler l'app et lancer les tests
+        run: |
+          mkdir -p build
+          status=0
+          xcodebuild test \
+            -project MusicTrad.xcodeproj \
+            -scheme MusicTrad \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            > build/xcodebuild.log 2>&1 || status=$?
+          grep -E "error:|Test |✔|✘|\*\* (BUILD|TEST)" build/xcodebuild.log || true
+          exit $status
+
+      - name: Vérifier que le projet Xcode suit project.yml
+        run: |
+          if [ -n "$(git status --porcelain -- MusicTrad.xcodeproj)" ]; then
+            echo "::error::MusicTrad.xcodeproj n'est pas à jour : lance « xcodegen generate » et commite le résultat."
+            git status --short -- MusicTrad.xcodeproj
+            exit 1
+          fi
+
+      - name: Journal complet en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: build/xcodebuild.log
+          if-no-files-found: ignore

@@ -36,11 +36,7 @@ nonisolated struct LRCLIBClient: Sendable {
         if let direct, direct.isInstrumental { return direct }
         // Copies identiques gardées : elles comptent comme des « votes » pour le bon timing.
         let others = (try? await alternatives(for: track, unique: false)) ?? []
-        let good = others.filter { $0.syncCheck(duration: track.duration) == .synced }
-        if let direct, direct.syncCheck(duration: track.duration) == .synced {
-            return Lyrics.consensus([direct] + good) ?? direct
-        }
-        return Lyrics.consensus(good) ?? good.first ?? direct ?? others.first
+        return Lyrics.best(direct: direct, others: others, duration: track.duration)
     }
 
     /// Toutes les versions trouvées, de la plus fiable à la moins fiable, sans doublons.
