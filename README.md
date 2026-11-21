@@ -9,6 +9,10 @@
   Petite app macOS de barre des menus, en Swift/SwiftUI, sans aucune dépendance.
 </p>
 
+<p align="center">
+  <a href="https://github.com/Ligrade/MusicTrad/releases/latest"><b>⬇︎ Télécharger MusicTrad 2.0 (.zip)</b></a>
+</p>
+
 ---
 
 ## Ce que fait l'app
@@ -43,6 +47,10 @@ Aucune API de paroles d'Apple n'est utilisée (il n'en existe pas pour les déve
 - Mac Apple Silicon, **macOS 26 (Tahoe)** ou plus récent
 - **Xcode 26** ou plus récent
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) si tu modifies `project.yml` (`brew install xcodegen`)
+
+## Télécharger
+
+La dernière version est sur la page [Releases](https://github.com/Ligrade/MusicTrad/releases/latest) : télécharge `MusicTrad-2.0.zip`, décompresse-le et glisse **MusicTrad.app** dans **Applications**. L'app n'est pas signée avec un certificat Apple Developer : au premier lancement, fais **clic droit › Ouvrir** (ou Réglages Système › Confidentialité et sécurité › « Ouvrir quand même »).
 
 ## Compiler et installer
 
