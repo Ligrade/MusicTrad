@@ -41,7 +41,7 @@ struct MusicTradApp: App {
 }
 
 /// Clic droit (ou ctrl-clic) sur l'icône de la barre des menus : petit menu
-/// « Paroles + traduction » (coché quand les paroles sont affichées), Réglages, Quitter.
+/// « Paroles + traduction » (action simple, sans coche), Réglages, Quitter.
 @MainActor final class StatusItemMenu: NSObject {
     static let shared = StatusItemMenu()
     private weak var app: AppState?
@@ -62,7 +62,6 @@ struct MusicTradApp: App {
         guard let app, let view = window.contentView else { return }
         let menu = NSMenu()
         let lyrics = NSMenuItem(title: "Paroles + traduction", action: #selector(toggleLyrics), keyEquivalent: "")
-        lyrics.state = app.showsLyrics ? .on : .off
         lyrics.target = self
         menu.addItem(lyrics)
         menu.addItem(.separator())
