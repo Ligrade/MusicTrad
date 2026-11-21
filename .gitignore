@@ -9,5 +9,5 @@ xcuserdata/
 # macOS
 .DS_Store
 
-# Réglages locaux Claude Code
-.claude/settings.local.json
+# Réglages locaux et worktrees de Claude Code
+.claude/

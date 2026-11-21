@@ -176,6 +176,7 @@ private struct TranslationSettings: View {
     @AppStorage(SettingsKey.engine) private var engine = TranslationEngine.apple
     @AppStorage(SettingsKey.prefetchNext) private var prefetchNext = true
     @AppStorage(SettingsKey.frenchToEnglish) private var frenchToEnglish = false
+    @AppStorage(SettingsKey.autoTranslate) private var autoTranslate = false
 
     @State private var apiKey = ""
     @State private var hasKey = KeychainStore.load() != nil
@@ -190,6 +191,10 @@ private struct TranslationSettings: View {
                     ForEach(TranslationEngine.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.radioGroup)
+                Toggle("Traduire automatiquement", isOn: $autoTranslate)
+                    .onChange(of: autoTranslate) { app.autoTranslateChanged() }
+                Text("Désactivé : rien n'est traduit tant que tu ne cliques pas sur la pilule « EN → FR ». Un son déjà traduit s'affiche directement.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Préparer le morceau suivant à l'avance", isOn: $prefetchNext)
                 Toggle("Traduire les chansons en français en anglais", isOn: $frenchToEnglish)
                     .onChange(of: frenchToEnglish) { app.frenchToEnglishChanged() }

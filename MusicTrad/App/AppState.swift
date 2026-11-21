@@ -472,6 +472,7 @@ final class AppState {
         versions = []
         versionInfo = nil
         calibrating = false
+        translationRequested = false
         songOffset = state.track.map(Self.savedSongOffset) ?? 0
         artworkTask?.cancel()
         if let track = state.track {
@@ -581,16 +582,43 @@ final class AppState {
     /// Pilule « EN → FR » barrée : aucune traduction, paroles originales seules (re-clic : on retraduit).
     private(set) var translationHidden = UserDefaults.standard.bool(forKey: SettingsKey.translationHidden)
 
-    func toggleTranslationHidden() {
-        translationHidden.toggle()
-        UserDefaults.standard.set(translationHidden, forKey: SettingsKey.translationHidden)
+    /// Traduction demandée à la main pour le son en cours (clic sur la pilule quand la traduction auto est coupée).
+    private(set) var translationRequested = false
+
+    /// La traduction du son en cours est-elle affichée (ou en route) ?
+    var translationShown: Bool {
+        switch translationStatus {
+        case .translating, .partial, .done: true
+        default: false
+        }
+    }
+
+    /// Clic sur la pilule « EN → FR » :
+    /// pas encore traduit → traduit ; traduction affichée → barrée (original seul) ; barrée → réaffichée.
+    func languagePillTapped() {
         if translationHidden {
+            setTranslationHidden(false)
+            translationRequested = true
+            retranslate()
+        } else if translationShown {
+            setTranslationHidden(true)
             // Arrête une traduction en cours (seulement si les paroles sont déjà là, pour ne pas couper leur chargement).
             if lyrics != nil { loadTask?.cancel() }
-            if sourceLanguage?.isFrench != true { translationStatus = .idle }
+            translationStatus = .idle
         } else {
+            translationRequested = true
             retranslate()
         }
+    }
+
+    private func setTranslationHidden(_ hidden: Bool) {
+        translationHidden = hidden
+        UserDefaults.standard.set(hidden, forKey: SettingsKey.translationHidden)
+    }
+
+    /// Réglage « Traduire automatiquement » activé : on traduit tout de suite le son en cours.
+    func autoTranslateChanged() {
+        if Preferences.autoTranslate, !translationHidden { retranslate() }
     }
 
     /// Bibliothèque des sons déjà traduits (pilule disque dur) : remplace les paroles par la liste.
@@ -619,7 +647,12 @@ final class AppState {
         }
         if let cached = translationCache.load([String].self, key: Self.translationKey(track, lyrics, engine, target)),
            cached.count == lyrics.lines.count {
-            translationStatus = .done(cached)
+            translationStatus = .done(cached)   // déjà traduit : affiché directement
+            return
+        }
+        // Traduction à la demande (par défaut) : on attend le clic sur la pilule.
+        if !Preferences.autoTranslate, !translationRequested, sourceLanguage?.isFrench != true {
+            translationStatus = .idle
             return
         }
         if sourceLanguage.map({ $0.sameLanguage(as: target) }) != true { translationStatus = .translating }
@@ -712,7 +745,8 @@ final class AppState {
                     Self.log.info("Préchargement : pas de paroles pour « \(next.title, privacy: .public) »")
                     return
                 }
-                if self.translationHidden { return }   // traduction désactivée : paroles seulement
+                // Traduction coupée ou à la demande : on ne prépare que les paroles.
+                if self.translationHidden || !Preferences.autoTranslate { return }
                 _ = try await fetchTranslation(next, lyrics: lyrics, engine: engine)
                 Self.log.info("Préchargement terminé : « \(next.title, privacy: .public) » est en cache")
             } catch {

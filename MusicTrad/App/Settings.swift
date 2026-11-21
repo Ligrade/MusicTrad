@@ -22,6 +22,7 @@ enum SettingsKey {
     static let prefetchNext = "prefetchNext"
     static let frenchToEnglish = "frenchToEnglish"
     static let translationHidden = "translationHidden"
+    static let autoTranslate = "autoTranslate"
     static let libraryFavorites = "libraryFavorites"
     static let settingsTab = "settingsTab"
     static let floatingWindowEnabled = "floatingWindowEnabled"
@@ -45,6 +46,8 @@ enum Preferences {
     private static var d: UserDefaults { .standard }
 
     static var syncOffset: Double { d.object(forKey: SettingsKey.syncOffset) as? Double ?? SettingsDefault.syncOffset }
+    /// Traduire chaque son automatiquement (désactivé par défaut : on traduit au clic sur la pilule).
+    static var autoTranslate: Bool { d.bool(forKey: SettingsKey.autoTranslate) }
     /// Traduire les chansons en français en anglais (désactivé par défaut).
     static var frenchToEnglish: Bool { d.bool(forKey: SettingsKey.frenchToEnglish) }
     static var prefetchNext: Bool { d.object(forKey: SettingsKey.prefetchNext) as? Bool ?? false }

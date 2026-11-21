@@ -116,22 +116,24 @@ private struct LanguagePill: View {
             // Chanson en français : pas de pilule (la traduction en anglais se règle dans les Réglages).
             EmptyView()
         } else {
-            // Clic : masque la traduction (paroles originales seules) ; re-clic : elle revient.
+            // Pas encore traduit : un clic traduit. Traduit : un clic barre (original seul), un autre réaffiche.
             let hidden = app.translationHidden
-            Button { app.toggleTranslationHidden() } label: {
+            let shown = app.translationShown
+            Button { app.languagePillTapped() } label: {
                 Pill {
                     Text("\(language?.pillCode ?? "EN") → FR")
                         .monospaced()
                         .strikethrough(hidden)
-                        // vert pendant la traduction, estompé quand elle est masquée
-                        .foregroundStyle(translating ? Color.green : hidden ? Color.secondary : Color.primary)
+                        // vert pendant la traduction ; estompé tant que rien n'est traduit ou quand c'est barré
+                        .foregroundStyle(translating ? Color.green : shown ? Color.primary : Color.secondary)
                 }
                 .contentShape(.capsule)
             }
             .buttonStyle(.plain)
             .disabled(language == nil)
-            .help(hidden ? "Afficher la traduction" : "Masquer la traduction")
+            .help(hidden ? "Afficher la traduction" : shown ? "Masquer la traduction" : "Traduire ce son")
             .animation(.snappy, value: hidden)
+            .animation(.snappy, value: shown)
             .opacity(language == nil ? 0 : 1)
             .animation(.easeInOut(duration: 0.25), value: language == nil)
         }
