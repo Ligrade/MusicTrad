@@ -41,6 +41,14 @@ nonisolated extension Locale.Language {
     static let french = Locale.Language(identifier: "fr")
     static let english = Locale.Language(identifier: "en")
     var isFrench: Bool { languageCode?.identifier == "fr" }
+    /// Code affiché dans la pilule (« NO » pour le norvégien plutôt que « NB » / « NN »).
+    var pillCode: String { Self.pillCode(minimalIdentifier) }
+    static func pillCode(_ code: String) -> String {
+        switch code.lowercased() {
+        case "nb", "nn": "NO"
+        default: code.uppercased()
+        }
+    }
     /// Même langue, quelle que soit la région (en-US = en-GB).
     func sameLanguage(as other: Locale.Language) -> Bool { languageCode == other.languageCode }
     var displayName: String {

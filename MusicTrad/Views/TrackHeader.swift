@@ -120,7 +120,7 @@ private struct LanguagePill: View {
             let hidden = app.translationHidden
             Button { app.toggleTranslationHidden() } label: {
                 Pill {
-                    Text("\((language?.minimalIdentifier ?? "en").uppercased()) → FR")
+                    Text("\(language?.pillCode ?? "EN") → FR")
                         .monospaced()
                         .strikethrough(hidden)
                         // vert pendant la traduction, estompé quand elle est masquée

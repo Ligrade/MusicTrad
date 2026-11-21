@@ -15,7 +15,7 @@ nonisolated struct LibraryEntry: Identifiable, Hashable, Sendable {
     /// Fichiers de traduction de ce son, toutes versions (pour la supprimer depuis la bibliothèque).
     var translationFiles: [String]
 
-    var pair: String { "\(source.uppercased()) → \(target.uppercased())" }
+    var pair: String { "\(Locale.Language.pillCode(source)) → \(Locale.Language.pillCode(target))" }
     var sourceIsFrench: Bool { source == "fr" }
 }
 
