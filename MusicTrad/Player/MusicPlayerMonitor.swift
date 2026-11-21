@@ -181,6 +181,28 @@ nonisolated final class AppleScriptRunner: @unchecked Sendable {
         }
     }
 
+    /// Joue un son de la bibliothèque Musique (titre + artiste). Renvoie false s'il n'y est pas.
+    func play(title: String, artist: String) async -> Bool {
+        func quoted(_ s: String) -> String {
+            "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
+        }
+        let source = """
+        tell application "Music"
+            set found to (every track of library playlist 1 whose name is \(quoted(title)) and artist is \(quoted(artist)))
+            if found is {} then set found to (every track of library playlist 1 whose name is \(quoted(title)))
+            if found is {} then return "no"
+            play item 1 of found
+            return "ok"
+        end tell
+        """
+        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            queue.async {
+                let result = NSAppleScript(source: source)?.executeAndReturnError(nil).stringValue
+                cont.resume(returning: result == "ok")
+            }
+        }
+    }
+
     /// Lance la playlist des morceaux likés (son nom dépend de la langue de Musique).
     func playFavorites() async {
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in

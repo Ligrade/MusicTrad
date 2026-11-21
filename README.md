@@ -26,8 +26,9 @@
 - **Chanson en français** : pas de traduction par défaut ; la pilule **FR → EN** la traduit en anglais à la demande (le français reste en blanc, l'anglais passe en rouge).
 - Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), l'**artiste** (un clic ouvre sa page dans Musique), une **étoile favori** synchronisée avec Musique, les commandes **⏮ ⏯ ⏭** et le choix de la **sortie AirPlay**.
 - **Musique fermée ou à l'arrêt** : un bouton rouge ♫ ouvre Musique ; sans lecture en cours, **Ma station** (ta station personnelle, lien à coller dans les Réglages) ou **Mes likes** (tes morceaux préférés).
+- **Sons déjà traduits** (pilule 💽 à côté de la langue) : la liste des morceaux traduits avec leurs pochettes et une recherche ; un clic pour relire paroles et traduction, ▶︎ pour l'écouter tout de suite.
 - Garde paroles et traductions en **cache**, avec un nettoyage automatique.
-- **Mode éco** (🍃 en haut à droite, actif au démarrage par défaut) : l'app reste dans la barre des menus mais ne consomme plus rien ; un bouton vert au centre la réactive. En marche, bulle fermée, elle tourne autour de 1 % de CPU.
+- **Mode éco** (🍃 en haut à droite, automatique après 30 min sans ouvrir l'app par défaut) : l'app reste dans la barre des menus (bulle avec une petite feuille) mais ne consomme plus rien ; la bulle devient un petit carré avec un bouton vert pour la réactiver. En marche, bulle fermée, elle tourne autour de 1 % de CPU.
 
 Aucune API de paroles d'Apple n'est utilisée (il n'en existe pas pour les développeurs), ni aucun jeton privé d'Apple Music.
 

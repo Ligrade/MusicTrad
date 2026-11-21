@@ -59,7 +59,10 @@ struct TrackHeader: View {
                 // Colonne de droite ancrée en haut : les pilules ne bougent jamais.
                 VStack(alignment: .trailing, spacing: 8) {
                     if showsAppButtons { AppButtons() }
-                    LanguagePill(language: app.track == nil ? nil : app.sourceLanguage)
+                    HStack(spacing: 8) {
+                        LanguagePill(language: app.track == nil ? nil : app.sourceLanguage)
+                        LibraryPill()
+                    }
                 }
             }
             if let error = app.favoriteError {
@@ -135,8 +138,28 @@ private struct LanguagePill: View {
     }
 }
 
+/// Disque dur : ouvre / ferme la bibliothèque des sons déjà traduits.
+private struct LibraryPill: View {
+    @Environment(AppState.self) private var app
+
+    var body: some View {
+        let active = app.libraryOpen
+        Button { app.libraryOpen.toggle() } label: {
+            Pill {
+                Image(systemName: active ? "internaldrive.fill" : "internaldrive")
+                    .foregroundStyle(active ? Color.black : Color.primary)
+            }
+            .background(Capsule().fill(active ? Color.white : .clear))
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .help(active ? "Revenir aux paroles en cours" : "Sons déjà traduits")
+        .animation(.snappy, value: active)
+    }
+}
+
 /// Mode éco, fenêtre flottante (si activée dans les Réglages), Réglages et Quitter, dans une pilule.
-private struct AppButtons: View {
+struct AppButtons: View {
     @Environment(AppState.self) private var app
     @Environment(\.openSettings) private var openSettings
     @Environment(\.openWindow) private var openWindow
@@ -149,7 +172,8 @@ private struct AppButtons: View {
                 Button {
                     withAnimation(.snappy) { app.setEcoMode(!app.ecoMode) }
                 } label: {
-                    Image(systemName: app.ecoMode ? "leaf.fill" : "leaf")
+                    // En mode éco : la note du logo, en vert, pour revenir à la musique.
+                    Image(systemName: app.ecoMode ? "music.note" : "leaf")
                         .foregroundStyle(app.ecoMode ? Color.green : Color.primary)
                         .contentTransition(.symbolEffect(.replace))
                 }

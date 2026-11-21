@@ -24,12 +24,50 @@ nonisolated struct ArtworkService: Sendable {
         return data
     }
 
+    /// Pochette d'un son de la bibliothèque (sans passer par Musique, qui donnerait celle du son en cours).
+    func libraryArtwork(artist: String, title: String) async -> Data? {
+        let key = "library|\(artist)|\(title)"
+        if let cached = cache.load(Data.self, key: key) { return cached }
+        guard let item = await searchSong(artist: artist, title: title),
+              let small = item.artworkUrl100,
+              let url = URL(string: small.replacingOccurrences(of: "100x100bb", with: "200x200bb")),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              NSImage(data: data) != nil else { return nil }
+        cache.save(data, key: key, label: "\(artist) – \(title)")
+        return data
+    }
+
+    /// Lien « music:// » vers le son dans Apple Music (quand il n'est pas dans la bibliothèque).
+    func songURL(artist: String, title: String) async -> URL? {
+        guard let link = await searchSong(artist: artist, title: title)?.trackViewUrl else { return nil }
+        return URL(string: link.replacingOccurrences(of: "https://", with: "music://"))
+    }
+
+    private func searchSong(artist: String, title: String) async -> SearchResponse.Item? {
+        var components = URLComponents(string: "https://itunes.apple.com/search")!
+        components.queryItems = [
+            URLQueryItem(name: "term", value: "\(artist) \(title)"),
+            URLQueryItem(name: "entity", value: "song"),
+            URLQueryItem(name: "limit", value: "10"),
+            URLQueryItem(name: "country", value: Locale.current.region?.identifier ?? "FR"),
+        ]
+        guard let url = components.url,
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let response = try? JSONDecoder().decode(SearchResponse.self, from: data) else { return nil }
+        let a = artist.normalizedForMatch, t = title.normalizedForMatch
+        let sameArtist = response.results.filter { ($0.artistName ?? "").normalizedForMatch == a }
+        return sameArtist.first { ($0.trackName ?? "").normalizedForMatch == t }
+            ?? sameArtist.first ?? response.results.first
+    }
+
     private struct SearchResponse: Decodable {
         struct Item: Decodable {
             let artistName: String?
             let collectionName: String?
             let artworkUrl100: String?
             let collectionViewUrl: String?
+            var trackName: String? = nil
+            var trackViewUrl: String? = nil
         }
         let results: [Item]
     }

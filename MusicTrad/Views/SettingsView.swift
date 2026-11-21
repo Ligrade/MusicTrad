@@ -30,7 +30,8 @@ struct SettingsView: View {
 private struct GeneralSettings: View {
     @AppStorage(SettingsKey.floatingWindowEnabled) private var floatingWindowEnabled = false
     @AppStorage(SettingsKey.openWindowAtLaunch) private var openWindowAtLaunch = false
-    @AppStorage(SettingsKey.ecoAtLaunch) private var ecoAtLaunch = true
+    @AppStorage(SettingsKey.ecoAtLaunch) private var ecoAtLaunch = false
+    @AppStorage(SettingsKey.autoEcoMinutes) private var autoEcoMinutes = 30
     @AppStorage(SettingsKey.myStationURL) private var myStationURL = ""
     @Environment(\.dismissWindow) private var dismissWindow
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -52,6 +53,15 @@ private struct GeneralSettings: View {
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.orange) }
                 Toggle("Démarrer en mode éco", isOn: $ecoAtLaunch)
                 Text("L'app se lance en veille : clique sur le bouton vert pour la réactiver.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Picker("Mode éco automatique", selection: $autoEcoMinutes) {
+                    Text("Après 30 min").tag(30)
+                    Text("Après 1 h").tag(60)
+                    Text("Après 2 h").tag(120)
+                    Text("Après 4 h").tag(240)
+                    Text("Jamais").tag(0)
+                }
+                Text("Si tu n'ouvres pas la bulle ni la fenêtre pendant ce temps, l'app se met en veille toute seule.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 

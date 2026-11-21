@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 @main
@@ -9,8 +10,8 @@ struct MusicTradApp: App {
             MenuBarContentView()
                 .environment(appState)
         } label: {
-            // Feuille en mode éco, bulle de paroles sinon.
-            Image(systemName: appState.ecoMode ? "leaf" : "quote.bubble")
+            // Bulle de paroles ; en mode éco, une petite feuille vient se poser devant.
+            if appState.ecoMode { Image(nsImage: .ecoMenuBarIcon) } else { Image(systemName: "quote.bubble") }
         }
         .menuBarExtraStyle(.window)
 
@@ -31,4 +32,27 @@ struct MusicTradApp: App {
                 .environment(appState)
         }
     }
+}
+
+extension NSImage {
+    /// Icône de la barre des menus en mode éco : la bulle de MusicTrad, une feuille posée en bas à droite.
+    static let ecoMenuBarIcon: NSImage = {
+        let size = NSSize(width: 20, height: 16)
+        let bubble = NSImage(systemSymbolName: "quote.bubble", accessibilityDescription: nil)!
+            .withSymbolConfiguration(.init(pointSize: 13, weight: .regular))!
+        let leaf = NSImage(systemSymbolName: "leaf.fill", accessibilityDescription: "Mode éco")!
+            .withSymbolConfiguration(.init(pointSize: 6.5, weight: .bold))!
+        let image = NSImage(size: size, flipped: false) { _ in
+            bubble.draw(in: NSRect(x: 0, y: 16 - bubble.size.height, width: bubble.size.width, height: bubble.size.height))
+            let leafRect = NSRect(x: 20 - leaf.size.width, y: 0, width: leaf.size.width, height: leaf.size.height)
+            // Détoure la feuille pour qu'elle se détache de la bulle.
+            NSGraphicsContext.current?.compositingOperation = .destinationOut
+            NSBezierPath(ovalIn: leafRect.insetBy(dx: -1, dy: -1)).fill()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            leaf.draw(in: leafRect)
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }()
 }

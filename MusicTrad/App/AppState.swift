@@ -73,14 +73,18 @@ final class AppState {
     private(set) var currentLineIndex: Int?
     /// Nombre de vues de paroles ouvertes (bulle, fenêtre flottante) : sans elles, l'app ralentit.
     @ObservationIgnored private var visibleViews = 0
+    /// Dernière fois que la bulle ou la fenêtre était à l'écran (pour la mise en veille automatique).
+    @ObservationIgnored private var lastUse = Date()
 
     func viewAppeared() {
         visibleViews += 1
+        lastUse = .now
         monitor.interval = .milliseconds(500)
     }
 
     func viewDisappeared() {
         visibleViews = max(0, visibleViews - 1)
+        lastUse = .now
         if visibleViews == 0 { monitor.interval = .milliseconds(1500) }
     }
 
@@ -173,6 +177,24 @@ final class AppState {
     /// Rien en lecture : lance les morceaux likés.
     func playFavorites() {
         Task { await monitor.runner.playFavorites() }
+    }
+
+    /// Pochette d'un son de la bibliothèque des traductions.
+    func libraryArtwork(_ entry: LibraryEntry) async -> NSImage? {
+        await artworkService.libraryArtwork(artist: entry.artist, title: entry.title).flatMap(NSImage.init(data:))
+    }
+
+    /// Bibliothèque : lance le son tout de suite et revient aux paroles en direct.
+    /// S'il n'est pas dans la bibliothèque Musique, ouvre sa page Apple Music.
+    func playFromLibrary(_ entry: LibraryEntry) {
+        libraryOpen = false   // retour immédiat aux paroles en direct
+        Task {
+            if await monitor.runner.play(title: entry.title, artist: entry.artist) {
+                return
+            } else if let url = await artworkService.songURL(artist: entry.artist, title: entry.title) {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 
     /// Clic sur l'artiste : ouvre sa page dans Musique.
@@ -320,6 +342,12 @@ final class AppState {
         ticker = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
+                // Mode éco automatique quand l'app n'a pas été regardée depuis le délai choisi.
+                let idle = Preferences.autoEcoMinutes
+                if idle > 0, self.visibleViews == 0, Date.now.timeIntervalSince(self.lastUse) > Double(idle) * 60 {
+                    self.setEcoMode(true)
+                    return
+                }
                 self.refreshCurrentLine()
                 // 20 fois par seconde seulement quand on regarde des paroles synchronisées.
                 let fast = self.visibleViews > 0 && self.playback.isPlaying && self.lyrics?.isSynced == true
@@ -487,6 +515,9 @@ final class AppState {
 
     /// Chanson en français : traduction en anglais seulement à la demande (pilule FR → EN).
     private(set) var englishRequested = false
+
+    /// Bibliothèque des sons déjà traduits (pilule disque dur) : remplace les paroles par la liste.
+    var libraryOpen = false
 
     /// Langue vers laquelle on traduit le morceau en cours.
     var translationTarget: Locale.Language {

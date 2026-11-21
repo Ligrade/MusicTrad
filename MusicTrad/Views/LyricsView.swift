@@ -10,7 +10,14 @@ struct LyricsView: View {
     @AppStorage(SettingsKey.blurInactive) private var blurInactive = true
 
     var body: some View {
-        content
+        Group {
+            if app.libraryOpen {
+                LibraryView().transition(.opacity)
+            } else {
+                content.transition(.opacity)
+            }
+        }
+            .animation(.easeInOut(duration: 0.25), value: app.libraryOpen)
             .animation(.easeInOut(duration: 0.25), value: app.track?.id)
             .animation(.easeInOut(duration: 0.35), value: app.lyricsStatus)
     }
@@ -172,7 +179,7 @@ enum LyricsPalette {
 
 /// Une ligne de paroles. La graisse ne change jamais : la mise en avant passe par
 /// l'opacité, l'échelle et le flou, qui ne modifient pas la mise en page (pas de saut de ligne).
-private struct LineRow: View {
+struct LineRow: View {
     let original: String
     let translation: String?
     let isCurrent: Bool

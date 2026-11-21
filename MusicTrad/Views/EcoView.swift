@@ -6,14 +6,14 @@ struct EcoView: View {
     @State private var hovering = false
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 14) {
             Button {
                 withAnimation(.snappy) { app.setEcoMode(false) }
             } label: {
                 Image(systemName: "power")
-                    .font(.system(size: 38, weight: .semibold))
+                    .font(.system(size: 44, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 96, height: 96)
+                    .frame(width: 112, height: 112)
                     .background(Circle().fill(Color.green.opacity(hovering ? 1 : 0.85)))
                     .scaleEffect(hovering ? 1.05 : 1)
                     .contentShape(.circle)
@@ -27,7 +27,7 @@ struct EcoView: View {
                 Label("Mode éco", systemImage: "leaf.fill")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.green)
-                Text("MusicTrad est en veille et ne consomme rien.\nClique pour réactiver.")
+                Text("En veille, ne consomme rien.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
