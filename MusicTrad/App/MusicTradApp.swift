@@ -46,6 +46,8 @@ struct MusicTradApp: App {
     static let shared = StatusItemMenu()
     private weak var app: AppState?
     private var monitor: Any?
+    /// Fenêtre de l'icône dans la barre des menus (sert à rouvrir la bulle).
+    private weak var statusWindow: NSWindow?
 
     func install(_ app: AppState) {
         self.app = app
@@ -60,6 +62,7 @@ struct MusicTradApp: App {
 
     private func show(in window: NSWindow) {
         guard let app, let view = window.contentView else { return }
+        statusWindow = window
         let menu = NSMenu()
         let lyrics = NSMenuItem(title: "Paroles + traduction", action: #selector(toggleLyrics), keyEquivalent: "")
         lyrics.target = self
@@ -77,7 +80,21 @@ struct MusicTradApp: App {
 
     /// Paroles + traduction : quitte le lecteur (ou le mode éco) et traduit tout de suite.
     /// Déjà sur les paroles : traduit seulement.
-    @objc private func toggleLyrics() { app?.showLyricsAndTranslate() }
+    /// La bulle s'ouvre toute seule si elle était fermée.
+    @objc private func toggleLyrics() {
+        app?.showLyricsAndTranslate()
+        guard let button = statusButton(in: statusWindow?.contentView), !button.isHighlighted else { return }
+        // Après la fermeture du menu, sinon le clic est avalé.
+        DispatchQueue.main.async { button.performClick(nil) }
+    }
+
+    /// Bouton de l'icône MusicTrad, celui que SwiftUI clique pour ouvrir la bulle.
+    private func statusButton(in view: NSView?) -> NSButton? {
+        guard let view else { return nil }
+        if let button = view as? NSButton { return button }
+        for sub in view.subviews { if let found = statusButton(in: sub) { return found } }
+        return nil
+    }
 
     /// Ouvre la fenêtre Réglages via l'élément « Réglages… » du menu de l'app (créé par SwiftUI).
     @objc private func openSettings() {
