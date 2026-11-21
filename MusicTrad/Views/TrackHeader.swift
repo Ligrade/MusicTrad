@@ -105,8 +105,8 @@ private struct LanguagePill: View {
         pill
             .opacity(pulsing ? 0.35 : 1)
             .animation(pulsing ? .easeInOut(duration: 0.7).repeatForever() : .easeOut(duration: 0.3), value: pulsing)
-            .onAppear { pulsing = translating }
-            .onChange(of: translating) { _, now in pulsing = now }
+            .onAppear { pulsing = translating && app.isOnScreen }
+            .onChange(of: translating && app.isOnScreen) { _, now in pulsing = now }
             .help(translating ? "Traduction en cours…" : "")
     }
 

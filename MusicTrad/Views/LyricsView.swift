@@ -269,8 +269,8 @@ private struct BreakRow: View {
         // Respiration seulement sur le passage en cours (une animation infinie par ligne coûterait du CPU).
         .scaleEffect(breathing ? 1.06 : 1, anchor: .leading)
         .animation(breathing ? .easeInOut(duration: 1.4).repeatForever() : .easeOut(duration: 0.3), value: breathing)
-        .onAppear { breathing = isCurrent }
-        .onChange(of: isCurrent) { _, now in breathing = now }
+        .onAppear { breathing = isCurrent && app.isOnScreen }
+        .onChange(of: isCurrent && app.isOnScreen) { _, now in breathing = now }
         .scaleEffect(1 + 0.3 * ending, anchor: .leading)
         .opacity(1 - ending)
         .animation(.easeOut(duration: 0.25), value: progress)

@@ -76,8 +76,13 @@ final class AppState {
     /// Dernière fois que la bulle ou la fenêtre était à l'écran (pour la mise en veille automatique).
     @ObservationIgnored private var lastUse = Date()
 
+    /// Une bulle ou une fenêtre est à l'écran : les animations infinies (♪ qui respirent, pilule qui clignote)
+    /// s'arrêtent sinon, car la fenêtre de la barre des menus reste vivante une fois fermée.
+    private(set) var isOnScreen = false
+
     func viewAppeared() {
         visibleViews += 1
+        isOnScreen = true
         lastUse = .now
         guard visibleViews == 1, !ecoMode else { return }
         // Première vue ouverte : relecture immédiate de Musique et horloge réveillée tout de suite.
@@ -87,6 +92,7 @@ final class AppState {
 
     func viewDisappeared() {
         visibleViews = max(0, visibleViews - 1)
+        isOnScreen = visibleViews > 0
         lastUse = .now
         // Plus rien à l'écran : Musique n'est relue qu'à ses notifications (l'horloge ralentit seule).
         if visibleViews == 0 { monitor.setVisible(false) }
