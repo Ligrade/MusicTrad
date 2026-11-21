@@ -9,6 +9,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build-and-test:
     name: Compilation et tests
@@ -39,9 +42,13 @@ jobs:
           grep -E "error:|Test |✔|✘|\*\* (BUILD|TEST)" build/xcodebuild.log || true
           exit $status
 
-      - name: TEMP exporter le projet généré
-        if: always()
-        run: tar czf - MusicTrad.xcodeproj | base64 -w 0; echo
+      - name: TEMP commiter le projet généré
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MusicTrad.xcodeproj
+          git commit -m "Projet Xcode régénéré par XcodeGen (cible de tests et schéma partagé)" || true
+          git push origin HEAD:${{ github.ref_name }}
 
       - name: Vérifier que le projet Xcode suit project.yml
         run: |
