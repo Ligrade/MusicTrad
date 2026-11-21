@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 import Foundation
 import Observation
 import OSLog
@@ -28,7 +29,23 @@ final class AppState {
     private(set) var lyricsStatus: LyricsStatus = .idle
     private(set) var translationStatus: TranslationStatus = .idle
     private(set) var sourceLanguage: Locale.Language?
-    private(set) var artwork: NSImage?
+    private(set) var artwork: NSImage? {
+        didSet { artworkBackdrop = artwork.flatMap(Self.backdrop(from:)) }
+    }
+    /// Pochette réduite et floutée une fois pour toutes, pour les fonds « couleur de l'album » :
+    /// une image toute prête coûte bien moins qu'un flou recalculé à chaque image affichée.
+    private(set) var artworkBackdrop: NSImage?
+    @ObservationIgnored private static let ciContext = CIContext()
+
+    private static func backdrop(from image: NSImage) -> NSImage? {
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let source = CIImage(cgImage: cg)
+        let scale = 64 / max(source.extent.width, source.extent.height, 1)
+        let small = source.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let blurred = small.clampedToExtent().applyingGaussianBlur(sigma: 5).cropped(to: small.extent)
+        guard let out = ciContext.createCGImage(blurred, from: small.extent) else { return nil }
+        return NSImage(cgImage: out, size: NSSize(width: out.width, height: out.height))
+    }
     /// Morceau auquel appartient la pochette affichée : la pochette ne change (et ne s'anime)
     /// qu'une fois la nouvelle chargée, pour qu'elle prenne directement la place de l'ancienne.
     private(set) var artworkID: String?
@@ -75,6 +92,12 @@ final class AppState {
     @ObservationIgnored private var visibleViews = 0
     /// Dernière fois que la bulle ou la fenêtre était à l'écran (pour la mise en veille automatique).
     @ObservationIgnored private var lastUse = Date()
+    /// Dernière fois que de la musique jouait (sans musique pendant le délai choisi : mode éco).
+    @ObservationIgnored private var lastMusic = Date()
+    /// Le prochain morceau vu sera traduit tout de suite (clic droit « Paroles + traduction » depuis le mode éco).
+    @ObservationIgnored private var translateNextTrack = false
+    /// En mode éco automatique : réveil (en lecteur) dès que Musique se remet à jouer.
+    @ObservationIgnored private var ecoWakeObserver: NSObjectProtocol?
 
     /// Une bulle ou une fenêtre est à l'écran : les animations infinies (♪ qui respirent, pilule qui clignote)
     /// s'arrêtent sinon, car la fenêtre de la barre des menus reste vivante une fois fermée.
@@ -376,7 +399,7 @@ final class AppState {
         artworkService = ArtworkService(runner: monitor.runner)
         nextTrackPredictor = NextTrackPredictor(runner: monitor.runner)
         monitor.onUpdate = { [weak self] state in self?.handle(state) }
-        if !ecoMode { startWork() }
+        if !ecoMode { startWork() } else { installEcoWake() }
         // Nettoyage du cache au lancement puis une fois par jour.
         maintenanceTask = Task {
             while !Task.isCancelled {
@@ -391,12 +414,14 @@ final class AppState {
 
     /// Mode éco : l'app reste dans la barre des menus mais ne fait plus rien
     /// (plus de lecture de Musique, d'horloge, de traduction ni de préchargement).
-    private(set) var ecoMode = Preferences.ecoAtLaunch || UserDefaults.standard.bool(forKey: SettingsKey.ecoMode)
+    /// Pas gardé d'un lancement à l'autre : l'app démarre active, sauf réglage « Démarrer en mode éco ».
+    private(set) var ecoMode = Preferences.ecoAtLaunch
 
-    func setEcoMode(_ on: Bool) {
+    /// `wakeOnMusic` : mode éco automatique, qui repart en lecteur dès que la musique reprend.
+    func setEcoMode(_ on: Bool, wakeOnMusic: Bool = false) {
         guard on != ecoMode else { return }
         ecoMode = on
-        UserDefaults.standard.set(on, forKey: SettingsKey.ecoMode)
+        if on { if wakeOnMusic { installEcoWake() } } else { removeEcoWake() }
         if on {
             monitor.stop()
             ticker?.cancel(); ticker = nil
@@ -411,7 +436,54 @@ final class AppState {
             currentLineIndex = nil
             calibrating = false
         } else {
+            lastMusic = .now
             startWork()
+        }
+    }
+
+    /// Écoute la notification de Musique (aucun coût au repos) pour sortir du mode éco quand la lecture reprend.
+    private func installEcoWake() {
+        guard ecoWakeObserver == nil else { return }
+        ecoWakeObserver = DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("com.apple.Music.playerInfo"), object: nil, queue: .main
+        ) { [weak self] note in
+            guard (note.userInfo?["Player State"] as? String) == "Playing" else { return }
+            MainActor.assumeIsolated { self?.wakeFromEcoForMusic() }
+        }
+    }
+
+    private func removeEcoWake() {
+        if let ecoWakeObserver { DistributedNotificationCenter.default().removeObserver(ecoWakeObserver) }
+        ecoWakeObserver = nil
+    }
+
+    /// De la musique repart pendant le mode éco : on revient, en lecteur (qui consomme très peu).
+    private func wakeFromEcoForMusic() {
+        guard ecoMode else { return }
+        if !bubbleCompact { setBubbleCompact(true) }
+        lastMusic = .now
+        lastUse = .now
+        setEcoMode(false)
+    }
+
+    /// Sans musique pendant ce temps (bulle fermée) : mode éco.
+    static let ecoAfterSilence: TimeInterval = 15 * 60
+
+    /// Paroles affichées (ni mode éco, ni lecteur réduit).
+    var showsLyrics: Bool { !ecoMode && !bubbleCompact }
+
+    /// Clic droit « Paroles + traduction » : sort du mode éco ou du lecteur, et traduit tout de suite
+    /// (sans passer par la pilule EN → FR).
+    func showLyricsAndTranslate() {
+        if translationHidden { setTranslationHidden(false) }
+        lastUse = .now
+        if ecoMode {
+            translateNextTrack = true          // le morceau sera relu au réveil
+            if bubbleCompact { setBubbleCompact(false) }
+            setEcoMode(false)
+        } else {
+            translationRequested = true
+            if bubbleCompact { setBubbleCompact(false) } else { retranslate() }
         }
     }
 
@@ -428,11 +500,20 @@ final class AppState {
         ticker = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
-                // Mode éco automatique quand l'app n'a pas été regardée depuis le délai choisi.
-                let idle = Preferences.autoEcoMinutes
-                if idle > 0, !self.bubbleCompact, self.visibleViews == 0, Date.now.timeIntervalSince(self.lastUse) > Double(idle) * 60 {
-                    self.setEcoMode(true)
-                    return
+                // Bulle fermée :
+                // - pas de musique depuis 15 min → mode éco (zéro conso, réveil en lecteur à la reprise) ;
+                // - musique, paroles pas regardées depuis le délai choisi → le lecteur.
+                if self.playback.isPlaying { self.lastMusic = .now }
+                if self.visibleViews == 0 {
+                    if !self.playback.isPlaying, Date.now.timeIntervalSince(self.lastMusic) > Self.ecoAfterSilence {
+                        self.setEcoMode(true, wakeOnMusic: true)
+                        return
+                    }
+                    let idle = Double(Preferences.autoEcoMinutes) * 60
+                    if idle > 0, self.playback.isPlaying, !self.bubbleCompact,
+                       Date.now.timeIntervalSince(self.lastUse) > idle {
+                        self.setBubbleCompact(true)
+                    }
                 }
                 guard self.visibleViews > 0 else {
                     // Rien à l'écran : inutile de suivre la ligne chantée (réveil par viewAppeared).
@@ -503,7 +584,8 @@ final class AppState {
         versions = []
         versionInfo = nil
         calibrating = false
-        translationRequested = false
+        translationRequested = translateNextTrack
+        translateNextTrack = false
         songOffset = state.track.map(Self.savedSongOffset) ?? 0
         artworkTask?.cancel()
         if let track = state.track {
@@ -652,8 +734,11 @@ final class AppState {
     /// Bulle repliée (juste l'en-tête et les commandes) : paroles cachées, donc rien n'est traduit.
     private(set) var bubbleCompact = UserDefaults.standard.bool(forKey: SettingsKey.bubbleCompact)
 
-    func toggleBubbleCompact() {
-        bubbleCompact.toggle()
+    func toggleBubbleCompact() { setBubbleCompact(!bubbleCompact) }
+
+    private func setBubbleCompact(_ on: Bool) {
+        guard on != bubbleCompact else { return }
+        bubbleCompact = on
         UserDefaults.standard.set(bubbleCompact, forKey: SettingsKey.bubbleCompact)
         if bubbleCompact {
             // Lecteur réduit = sobre comme le mode éco : plus de paroles, de traduction ni de préchargement.

@@ -149,12 +149,12 @@ struct MiniPlayerView: View {
     private var background: some View {
         ZStack {
             LyricsPalette.background
-            if let image = app.artwork {
+            if let image = app.artworkBackdrop {
                 Image(nsImage: image)
                     .resizable()
+                    .interpolation(.medium)
                     .aspectRatio(contentMode: .fill)
                     .frame(width: side, height: side)
-                    .blur(radius: 40)
                     .opacity(0.55)
                     .id(app.artworkID)
                     .transition(.opacity)
@@ -382,11 +382,11 @@ struct AlbumBackdrop: View {
         ZStack {
             LyricsPalette.background
             Color.clear.overlay {
-                if let image = app.artwork {
+                if let image = app.artworkBackdrop {
                     Image(nsImage: image)
                         .resizable()
+                        .interpolation(.medium)
                         .aspectRatio(contentMode: .fill)
-                        .blur(radius: 60)
                         .opacity(0.6)
                         .id(app.artworkID)
                         .transition(.opacity)

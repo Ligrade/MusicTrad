@@ -155,9 +155,9 @@ private struct StyleChoice: View {
             VStack(spacing: 6) {
                 ZStack {
                     if album {
-                        if let image = app.artwork {
+                        if let image = app.artworkBackdrop {
                             Color.clear.overlay {
-                                Image(nsImage: image).resizable().aspectRatio(contentMode: .fill).blur(radius: 14)
+                                Image(nsImage: image).resizable().interpolation(.medium).aspectRatio(contentMode: .fill)
                             }
                             .clipped()
                             Color.black.opacity(0.35)

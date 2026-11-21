@@ -58,16 +58,16 @@ private struct GeneralSettings: View {
                 Button("Revoir la présentation des fonctions") { onboardingSeen = false }
                     .disabled(!onboardingSeen)
                 Toggle("Démarrer en mode éco", isOn: $ecoAtLaunch)
-                Text("L'app se lance en veille : clique sur le bouton vert pour la réactiver.")
+                Text("L'app se lance en veille et se réveille en lecteur dès que la musique joue (ou clique sur la note verte).")
                     .font(.caption).foregroundStyle(.secondary)
-                Picker("Mode éco automatique", selection: $autoEcoMinutes) {
+                Picker("Paroles → lecteur", selection: $autoEcoMinutes) {
                     Text("Après 30 min").tag(30)
                     Text("Après 1 h").tag(60)
                     Text("Après 2 h").tag(120)
                     Text("Après 4 h").tag(240)
                     Text("Jamais").tag(0)
                 }
-                Text("Si tu n'ouvres pas la bulle ni la fenêtre pendant ce temps, l'app se met en veille toute seule.")
+                Text("Bulle fermée pendant ce temps, avec de la musique : les paroles laissent place au lecteur (presque rien consommé). Sans musique pendant 15 min, l'app passe en mode éco (zéro conso) et revient en lecteur dès que la musique reprend.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 

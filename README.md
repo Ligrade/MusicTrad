@@ -31,9 +31,10 @@
 - **Lecteur réduit** (chevron ⌃ en haut à droite) : la bulle se replie en petit lecteur carré, centré sous l'icône : pochette, titre, artiste, barre de lecture (clic ou glisser pour avancer) et commandes. Aussi sobre que le mode éco : ni paroles, ni traduction, ni préchargement ; les paroles reviennent au dépliage.
 - **Pochette animée** (option dans Réglages › Affichage) : quand l'album en a une sur Apple Music, la vidéo remplit le lecteur réduit, comme le lecteur plein écran de l'iPhone. Elle continue d'un son à l'autre du même album, se voile au survol pour bien voir les commandes et se met en pause en pause, bulle cachée ou quand une autre fenêtre passe devant.
 - **Sons déjà traduits** (pilule 💽 à côté de la langue) : la liste des morceaux traduits avec leurs pochettes (Musique, iTunes puis Deezer) et une recherche ; un clic pour relire paroles et traduction, ▶︎ pour l'écouter tout de suite, ♥ pour garder ces paroles pour toujours (jamais supprimées du cache). La place restante et la règle de suppression sont affichées en haut.
+- **Clic droit sur l'icône** de la barre des menus : « Paroles + traduction » (quitte le lecteur ou le mode éco et traduit tout de suite ; déjà sur les paroles : traduit seulement), Réglages…, Quitter.
 - **Présentation des fonctions** au premier lancement, page par page, qui finit par le choix du style : fond couleur de l'album ou noir, pochette animée oui/non (à revoir dans Réglages › Général).
 - Garde paroles et traductions en **cache**, avec un nettoyage automatique.
-- **Mode éco** (automatique après 30 min sans ouvrir l'app par défaut, ou au lancement) : l'app reste dans la barre des menus (bulle avec une petite feuille) mais ne consomme plus rien ; la bulle devient un petit carré avec une note verte pour la réactiver. En marche, bulle fermée, elle tourne autour de 1 % de CPU.
+- **Veille automatique**, bulle fermée : avec de la musique, les paroles laissent place au lecteur (après 30 min par défaut) ; sans musique pendant 15 min, **mode éco** : l'app reste dans la barre des menus (bulle avec une petite feuille) mais ne consomme plus rien, et revient en lecteur dès que la musique reprend (ou via la note verte). En marche, bulle fermée, elle tourne autour de 1 % de CPU.
 
 Aucune API de paroles d'Apple n'est utilisée (il n'en existe pas pour les développeurs), ni aucun jeton privé d'Apple Music.
 
