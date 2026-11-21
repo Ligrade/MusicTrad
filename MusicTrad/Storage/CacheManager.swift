@@ -124,32 +124,17 @@ nonisolated final class CacheManager: @unchecked Sendable {
     private func pruneSync(limitBytes: Int64, maxAgeDays: Int) -> Stats {
         loadIfNeeded()
         let protected = Set(protectedFiles.values.flatMap { $0 })
-        var entries = scan()
-        var removed = 0
+        let entries = scan()
+        let items = entries.map { CachePruning.Item(name: $0.name, size: $0.size, lastUse: $0.lastUse) }
+        let toRemove = CachePruning.filesToRemove(items, protected: protected,
+                                                  limitBytes: limitBytes, maxAgeDays: maxAgeDays, now: Date())
         let fm = FileManager.default
-
-        // 1. Pas écouté depuis trop longtemps
-        let cutoff = maxAgeDays > 0 ? Date().addingTimeInterval(-Double(maxAgeDays) * 86400) : .distantPast
-        entries.removeAll { e in
-            guard e.lastUse < cutoff, !protected.contains(e.name) else { return false }
-            try? fm.removeItem(at: e.url); removed += 1
-            return true
-        }
-
-        // 2. Trop gros : le moins récemment écouté part en premier
-        var total = entries.reduce(0) { $0 + $1.size }
-        if total > limitBytes {
-            for e in entries.sorted(by: { $0.lastUse < $1.lastUse }) where !protected.contains(e.name) {
-                guard total > limitBytes else { break }
-                try? fm.removeItem(at: e.url)
-                total -= e.size
-                removed += 1
-                entries.removeAll { $0.url == e.url }
-            }
-        }
+        for i in toRemove { try? fm.removeItem(at: entries[i].url) }
+        let removed = toRemove.count
+        let kept = entries.indices.filter { !toRemove.contains($0) }.map { entries[$0] }
 
         if removed > 0 { LibraryIndex.shared.dropMissing() }   // la bibliothèque oublie les sons supprimés
-        let stats = computeStats(entries)
+        let stats = computeStats(kept)
         log.info("Nettoyage : \(removed) fichier(s) supprimé(s), \(stats.bytes) octets, \(stats.songs) titre(s)")
         return stats
     }
