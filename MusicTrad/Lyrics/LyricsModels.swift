@@ -94,4 +94,16 @@ extension Lyrics {
         }
         return timed.min { distance($0.1) < distance($1.1) }?.0
     }
+
+    /// Choisit la version à afficher entre la réponse directe de LRCLIB et les autres enregistrements :
+    /// réponse instrumentale gardée telle quelle ; sinon la version de la majorité parmi celles
+    /// dont le timing colle à la durée ; à défaut, la meilleure version disponible.
+    nonisolated static func best(direct: Lyrics?, others: [Lyrics], duration: TimeInterval) -> Lyrics? {
+        if let direct, direct.isInstrumental { return direct }
+        let good = others.filter { $0.syncCheck(duration: duration) == .synced }
+        if let direct, direct.syncCheck(duration: duration) == .synced {
+            return consensus([direct] + good) ?? direct
+        }
+        return consensus(good) ?? good.first ?? direct ?? others.first
+    }
 }
