@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Ligrade/MusicTrad/releases/latest"><b>⬇︎ Télécharger MusicTrad 2.0 (.zip)</b></a>
+  <a href="https://github.com/Ligrade/MusicTrad/releases/latest"><b>⬇︎ Télécharger MusicTrad 2.0.1 (.zip)</b></a>
 </p>
 
 ---
@@ -50,7 +50,7 @@ Aucune API de paroles d'Apple n'est utilisée (il n'en existe pas pour les déve
 
 ## Télécharger
 
-La dernière version est sur la page [Releases](https://github.com/Ligrade/MusicTrad/releases/latest) : télécharge `MusicTrad-2.0.zip`, décompresse-le et glisse **MusicTrad.app** dans **Applications**. L'app n'est pas signée avec un certificat Apple Developer : au premier lancement, fais **clic droit › Ouvrir** (ou Réglages Système › Confidentialité et sécurité › « Ouvrir quand même »).
+La dernière version est sur la page [Releases](https://github.com/Ligrade/MusicTrad/releases/latest) : télécharge `MusicTrad-2.0.1.zip`, décompresse-le et glisse **MusicTrad.app** dans **Applications**. L'app n'est pas signée avec un certificat Apple Developer : au premier lancement, fais **clic droit › Ouvrir** (ou Réglages Système › Confidentialité et sécurité › « Ouvrir quand même »).
 
 ## Compiler et installer
 
