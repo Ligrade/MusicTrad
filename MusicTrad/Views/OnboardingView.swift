@@ -21,7 +21,7 @@ struct OnboardingView: View {
         Page(symbol: "heart.fill", title: "Le cœur", detail: "Garde une traduction pour toujours."),
         Page(symbol: "internaldrive", title: "Sons traduits", detail: "Relis, réécoute ou supprime tes traductions."),
         Page(symbol: "checkmark.seal", title: "Synchro", detail: "Paroles décalées ? Recale-les en un clic."),
-        Page(symbol: "leaf", title: "Mode éco", detail: "En veille, l'app ne consomme rien."),
+        Page(symbol: "chevron.up", title: "Lecteur réduit", detail: "Replie la bulle : juste la musique,\npresque rien consommé."),
     ]
 
     private var isLast: Bool { page == pages.count - 1 }

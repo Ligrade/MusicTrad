@@ -8,7 +8,7 @@ struct EcoView: View {
     var body: some View {
         VStack(spacing: 14) {
             Button {
-                withAnimation(.snappy) { app.setEcoMode(false) }
+                changeBubbleLayout { app.setEcoMode(false) }
             } label: {
                 Image(systemName: "power")
                     .font(.system(size: 44, weight: .semibold))

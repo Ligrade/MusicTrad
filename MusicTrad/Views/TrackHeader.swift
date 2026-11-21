@@ -186,16 +186,26 @@ struct AppButtons: View {
     var body: some View {
         Pill {
             HStack(spacing: 12) {
-                Button {
-                    withAnimation(.snappy) { app.setEcoMode(!app.ecoMode) }
-                } label: {
-                    // En mode éco : la note du logo, en vert, pour revenir à la musique.
-                    Image(systemName: app.ecoMode ? "music.note" : "leaf")
-                        .foregroundStyle(app.ecoMode ? Color.green : Color.primary)
-                        .contentTransition(.symbolEffect(.replace))
+                // Plus de bouton éco : le lecteur réduit le remplace. Seul le mode éco (veille automatique
+                // ou au lancement) garde la note verte pour revenir à la musique.
+                if app.ecoMode {
+                    Button {
+                        changeBubbleLayout { app.setEcoMode(false) }
+                    } label: {
+                        Image(systemName: "music.note").foregroundStyle(Color.green)
+                    }
+                    .help("Quitter le mode éco")
+                    Divider().frame(height: 14)
                 }
-                .help(app.ecoMode ? "Quitter le mode éco" : "Mode éco : met l'app en veille sans la fermer")
-                Divider().frame(height: 14)
+                if !app.ecoMode {
+                    // Replier la bulle (juste les commandes) ou la déplier (paroles).
+                    Button { changeBubbleLayout { app.toggleBubbleCompact() } } label: {
+                        Image(systemName: app.bubbleCompact ? "chevron.down" : "chevron.up")
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                    .help(app.bubbleCompact ? "Afficher les paroles" : "Replier : juste les commandes")
+                    Divider().frame(height: 14)
+                }
                 if floatingWindowEnabled && !app.ecoMode {
                     Button {
                         openWindow(id: FloatingWindowView.id)
@@ -222,7 +232,7 @@ struct AppButtons: View {
     }
 }
 
-private struct ArtworkView: View {
+struct ArtworkView: View {
     let image: NSImage?
     let size: CGFloat
 
@@ -278,7 +288,7 @@ private struct LyricsFavoriteButton: View {
 
 /// Étoile blanche vide ; jaune quand le morceau est dans les favoris de Musique.
 /// Elle ne s'anime qu'au clic, pas quand on passe à un morceau déjà en favori.
-private struct FavoriteButton: View {
+struct FavoriteButton: View {
     @Environment(AppState.self) private var app
     @State private var taps = 0
 

@@ -27,10 +27,12 @@
 - **Traduction à la demande** : rien n'est traduit tant que tu ne cliques pas sur la pilule **EN → FR** (un son déjà traduit s'affiche directement) ; re-clic : paroles originales seules ; **clic droit** : traduction automatique (indicateur ∞, aussi dans les Réglages).
 - Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), l'**artiste** (un clic ouvre sa page dans Musique), une **étoile favori** synchronisée avec Musique, un **cœur** pour sauver la traduction du son (jamais supprimée), les commandes **⏮ ⏯ ⏭** et le choix de la **sortie AirPlay**.
 - **Musique fermée ou à l'arrêt** : un bouton rouge ♫ ouvre Musique ; sans lecture en cours, **Ma station** (ta station personnelle, lien à coller dans les Réglages) ou **Mes likes** (tes morceaux préférés).
-- **Sons déjà traduits** (pilule 💽 à côté de la langue) : la liste des morceaux traduits avec leurs pochettes et une recherche ; un clic pour relire paroles et traduction, ▶︎ pour l'écouter tout de suite, ♥ pour garder ces paroles pour toujours (jamais supprimées du cache). La place restante et la règle de suppression sont affichées en haut.
+- **Lecteur réduit** (chevron ⌃ en haut à droite) : la bulle se replie en petit lecteur carré, centré sous l'icône : pochette, titre, artiste, barre de lecture (clic ou glisser pour avancer) et commandes. Aussi sobre que le mode éco : ni paroles, ni traduction, ni préchargement ; les paroles reviennent au dépliage.
+- **Pochette animée** (option dans Réglages › Affichage) : quand l'album en a une sur Apple Music, la vidéo remplit le lecteur réduit, comme le lecteur plein écran de l'iPhone. Elle continue d'un son à l'autre du même album, se voile au survol pour bien voir les commandes et se met en pause en pause, bulle cachée ou quand une autre fenêtre passe devant.
+- **Sons déjà traduits** (pilule 💽 à côté de la langue) : la liste des morceaux traduits avec leurs pochettes (Musique, iTunes puis Deezer) et une recherche ; un clic pour relire paroles et traduction, ▶︎ pour l'écouter tout de suite, ♥ pour garder ces paroles pour toujours (jamais supprimées du cache). La place restante et la règle de suppression sont affichées en haut.
 - **Présentation des fonctions** au premier lancement, page par page (à revoir dans Réglages › Général).
 - Garde paroles et traductions en **cache**, avec un nettoyage automatique.
-- **Mode éco** (🍃 en haut à droite, automatique après 30 min sans ouvrir l'app par défaut) : l'app reste dans la barre des menus (bulle avec une petite feuille) mais ne consomme plus rien ; la bulle devient un petit carré avec un bouton vert pour la réactiver. En marche, bulle fermée, elle tourne autour de 1 % de CPU.
+- **Mode éco** (automatique après 30 min sans ouvrir l'app par défaut, ou au lancement) : l'app reste dans la barre des menus (bulle avec une petite feuille) mais ne consomme plus rien ; la bulle devient un petit carré avec une note verte pour la réactiver. En marche, bulle fermée, elle tourne autour de 1 % de CPU.
 
 Aucune API de paroles d'Apple n'est utilisée (il n'en existe pas pour les développeurs), ni aucun jeton privé d'Apple Music.
 
@@ -74,8 +76,8 @@ tccutil reset AppleEvents fr.dynamicagence.MusicTrad
 | Onglet | Options |
 |---|---|
 | **Général** | Ouverture à la connexion, démarrage en mode éco, lien de « Ma station », fenêtre flottante (désactivée par défaut, toujours au premier plan, bouton dans la pilule du haut), accès à Musique |
-| **Affichage** | Taille des paroles et de la traduction, paroles originales oui/non, flou des lignes inactives, aperçu, décalage de synchronisation |
-| **Traduction** | Moteur Apple ou DeepL, préparation du morceau suivant, chansons en français traduites en anglais, clé DeepL avec test et consommation du mois |
+| **Affichage** | Pochette animée du lecteur réduit, taille des paroles et de la traduction, paroles originales oui/non, flou des lignes inactives, aperçu, décalage de synchronisation |
+| **Traduction** | Moteur Apple ou DeepL, traduction automatique, préparation du morceau suivant, chansons en français traduites en anglais, clé DeepL avec test et consommation du mois |
 | **Cache** | Espace utilisé, taille maximale (50 Mo par défaut), suppression après 2 semaines à 3 mois sans écoute (3 mois par défaut, favoris jamais supprimés), ouverture dans le Finder, vidage |
 
 ## Cache

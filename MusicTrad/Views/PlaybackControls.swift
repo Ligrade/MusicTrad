@@ -4,6 +4,8 @@ import SwiftUI
 struct PlaybackControls: View {
     @Environment(AppState.self) private var app
     var size: CGFloat = 22
+    /// Voyant de synchro et AirPlay de part et d'autre (pas dans le petit lecteur).
+    var showsExtras = true
 
     private var available: Bool { app.track != nil }
 
@@ -18,10 +20,10 @@ struct PlaybackControls: View {
         .opacity(available ? 1 : 0.35)
         .frame(maxWidth: .infinity)
         .overlay(alignment: .trailing) {
-            SyncBadge().padding(.trailing, 18)
+            if showsExtras { SyncBadge().padding(.trailing, 18) }
         }
         .overlay(alignment: .leading) {
-            AirPlayButton().padding(.leading, 18)
+            if showsExtras { AirPlayButton().padding(.leading, 18) }
         }
     }
 

@@ -24,6 +24,8 @@ enum SettingsKey {
     static let translationHidden = "translationHidden"
     static let autoTranslate = "autoTranslate"
     static let onboardingSeen = "onboardingSeen"
+    static let bubbleCompact = "bubbleCompact"
+    static let animatedArtwork = "animatedArtwork"
     static let libraryFavorites = "libraryFavorites"
     static let settingsTab = "settingsTab"
     static let floatingWindowEnabled = "floatingWindowEnabled"
@@ -51,7 +53,7 @@ enum Preferences {
     static var autoTranslate: Bool { d.bool(forKey: SettingsKey.autoTranslate) }
     /// Traduire les chansons en français en anglais (désactivé par défaut).
     static var frenchToEnglish: Bool { d.bool(forKey: SettingsKey.frenchToEnglish) }
-    static var prefetchNext: Bool { d.object(forKey: SettingsKey.prefetchNext) as? Bool ?? false }
+    static var prefetchNext: Bool { d.object(forKey: SettingsKey.prefetchNext) as? Bool ?? true }
     /// Fenêtre flottante désactivée par défaut : à cocher dans Réglages › Général.
     static var floatingWindowEnabled: Bool { d.bool(forKey: SettingsKey.floatingWindowEnabled) }
     /// Démarrer en mode éco (désactivé par défaut).

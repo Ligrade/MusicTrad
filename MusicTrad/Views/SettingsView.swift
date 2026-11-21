@@ -116,9 +116,18 @@ private struct DisplaySettings: View {
     @AppStorage(SettingsKey.showOriginal) private var showOriginal = true
     @AppStorage(SettingsKey.blurInactive) private var blurInactive = true
     @AppStorage(SettingsKey.syncOffset) private var syncOffset = SettingsDefault.syncOffset
+    @AppStorage(SettingsKey.animatedArtwork) private var animatedArtwork = false
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Pochette animée", isOn: $animatedArtwork)
+            } header: {
+                Text("Petit lecteur")
+            } footer: {
+                Text("Quand l'album en a une sur Apple Music, elle remplit le lecteur réduit pendant la lecture, et se met en pause dès qu'une autre fenêtre passe devant. Consomme un peu plus.")
+            }
+
             Section("Texte") {
                 LabeledContent("Taille des paroles") {
                     HStack {
@@ -199,6 +208,9 @@ private struct TranslationSettings: View {
                 Text("Désactivé : rien n'est traduit tant que tu ne cliques pas sur la pilule « EN → FR ». Un son déjà traduit s'affiche directement. Raccourci : clic droit sur la pilule (∞ quand c'est activé).")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Préparer le morceau suivant à l'avance", isOn: $prefetchNext)
+                Text(autoTranslate ? "Paroles et traduction du son suivant prêtes avant qu'il commence."
+                                   : "Paroles du son suivant prêtes à l'avance. Sa traduction aussi quand la traduction automatique (∞) est activée.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Traduire les chansons en français en anglais", isOn: $frenchToEnglish)
                     .onChange(of: frenchToEnglish) { app.frenchToEnglishChanged() }
             } header: {

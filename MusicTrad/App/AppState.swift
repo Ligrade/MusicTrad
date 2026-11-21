@@ -107,6 +107,9 @@ final class AppState {
         anchor.playing ? anchor.position + Date().timeIntervalSince(anchor.at) : anchor.position
     }
 
+    /// Position estimée maintenant (pour la barre de progression du petit lecteur).
+    var playerPosition: TimeInterval { livePosition }
+
     @ObservationIgnored private var seekGuardUntil = Date.distantPast
 
     private func updateAnchor(_ state: PlaybackState, sameTrack: Bool) {
@@ -241,7 +244,7 @@ final class AppState {
 
     /// Pochette d'un son de la bibliothèque des traductions.
     func libraryArtwork(_ entry: LibraryEntry) async -> NSImage? {
-        await artworkService.libraryArtwork(artist: entry.artist, title: entry.title).flatMap(NSImage.init(data:))
+        await artworkService.libraryArtwork(artist: entry.artist, title: entry.title, album: entry.album).flatMap(NSImage.init(data:))
     }
 
     /// Bibliothèque : lance le son tout de suite et revient aux paroles en direct.
@@ -273,6 +276,22 @@ final class AppState {
             if let url = await artworkService.albumURL(for: track), NSWorkspace.shared.open(url) { return }
             await monitor.runner.revealCurrentTrack()
         }
+    }
+
+    /// Pochette animée de l'album en cours (Apple Music), si l'option est activée et que l'album en a une.
+    func motionArtwork() async -> URL? {
+        guard let track, UserDefaults.standard.bool(forKey: SettingsKey.animatedArtwork) else { return nil }
+        return await artworkService.motionArtwork(for: track)
+    }
+
+    /// Barre de lecture : saute à une position du morceau.
+    func seek(seconds: TimeInterval) {
+        guard let track else { return }
+        let target = min(max(0, seconds), max(track.duration - 0.5, 0))
+        anchor = (target, Date(), anchor.playing)
+        seekGuardUntil = Date().addingTimeInterval(1.5)
+        refreshCurrentLine()
+        monitor.seek(to: target)
     }
 
     /// Mode « recaler » : le prochain clic sur une ligne indique ce qu'on entend en ce moment.
@@ -411,13 +430,18 @@ final class AppState {
                 guard let self else { return }
                 // Mode éco automatique quand l'app n'a pas été regardée depuis le délai choisi.
                 let idle = Preferences.autoEcoMinutes
-                if idle > 0, self.visibleViews == 0, Date.now.timeIntervalSince(self.lastUse) > Double(idle) * 60 {
+                if idle > 0, !self.bubbleCompact, self.visibleViews == 0, Date.now.timeIntervalSince(self.lastUse) > Double(idle) * 60 {
                     self.setEcoMode(true)
                     return
                 }
                 guard self.visibleViews > 0 else {
                     // Rien à l'écran : inutile de suivre la ligne chantée (réveil par viewAppeared).
                     try? await Task.sleep(for: .seconds(30))
+                    continue
+                }
+                if self.bubbleCompact {
+                    // Lecteur réduit : pas de paroles à suivre (la barre de lecture a sa propre horloge).
+                    try? await Task.sleep(for: .seconds(1))
                     continue
                 }
                 self.refreshCurrentLine()
@@ -483,7 +507,8 @@ final class AppState {
         songOffset = state.track.map(Self.savedSongOffset) ?? 0
         artworkTask?.cancel()
         if let track = state.track {
-            loadTask = Task { await load(track) }
+            // Lecteur réduit : sobre comme le mode éco, pas de paroles (chargées au dépliage).
+            if !bubbleCompact { loadTask = Task { await load(track) } }
             artworkTask = Task {
                 let data = await artworkService.artwork(for: track)
                 guard !Task.isCancelled, currentTrackID == track.id else { return }
@@ -624,6 +649,24 @@ final class AppState {
         UserDefaults.standard.set(hidden, forKey: SettingsKey.translationHidden)
     }
 
+    /// Bulle repliée (juste l'en-tête et les commandes) : paroles cachées, donc rien n'est traduit.
+    private(set) var bubbleCompact = UserDefaults.standard.bool(forKey: SettingsKey.bubbleCompact)
+
+    func toggleBubbleCompact() {
+        bubbleCompact.toggle()
+        UserDefaults.standard.set(bubbleCompact, forKey: SettingsKey.bubbleCompact)
+        if bubbleCompact {
+            // Lecteur réduit = sobre comme le mode éco : plus de paroles, de traduction ni de préchargement.
+            loadTask?.cancel()
+            prefetchTask?.cancel()
+            if lyrics == nil { lyricsStatus = .idle }
+        } else if let track, lyrics == nil {
+            loadTask = Task { await load(track) }   // morceaux changés pendant le lecteur : paroles à charger
+        } else {
+            retranslate()   // paroles de retour : traduction en cache ou à faire (selon la pilule)
+        }
+    }
+
     /// Réglage « Traduire automatiquement » activé : on traduit tout de suite le son en cours.
     func autoTranslateChanged() {
         if Preferences.autoTranslate, !translationHidden { retranslate() }
@@ -648,7 +691,11 @@ final class AppState {
         let engine = self.engine
         sourceLanguage = LanguageDetector.detect(lyrics.fullText)
         let target = translationTarget
-        // Traduction désactivée (pilule barrée) : rien à faire pour une chanson étrangère.
+        // Traduction désactivée (pilule barrée) ou paroles cachées (bulle repliée) : rien à traduire.
+        if bubbleCompact {
+            translationStatus = .idle
+            return
+        }
         if translationHidden, sourceLanguage?.isFrench != true {
             translationStatus = .idle
             return
@@ -756,7 +803,7 @@ final class AppState {
     /// Prépare paroles et traduction du morceau suivant pendant que celui-ci joue.
     private func prefetchNext(after track: TrackInfo) {
         prefetchTask?.cancel()
-        guard Preferences.prefetchNext else { return }
+        guard Preferences.prefetchNext, !bubbleCompact else { return }
         let engine = self.engine
         prefetchTask = Task {
             guard let next = await nextTrackPredictor.next(after: track), !Task.isCancelled else {
@@ -770,7 +817,7 @@ final class AppState {
                     return
                 }
                 // Traduction coupée ou à la demande : on ne prépare que les paroles.
-                if self.translationHidden || !Preferences.autoTranslate { return }
+                if self.translationHidden || self.bubbleCompact || !Preferences.autoTranslate { return }
                 _ = try await fetchTranslation(next, lyrics: lyrics, engine: engine)
                 Self.log.info("Préchargement terminé : « \(next.title, privacy: .public) » est en cache")
             } catch {

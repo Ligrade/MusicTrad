@@ -29,6 +29,7 @@
 		8C3CD76ECF3573F2310D8759 /* NextTrackPredictor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDFD780D0C7AA37606FFE5A3 /* NextTrackPredictor.swift */; };
 		911AA5D7EEBD23F03C83AAAE /* LyricsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 973241DF63D89952AE90EC2B /* LyricsModels.swift */; };
 		9388003434EFE6AA35E7B5B1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 4200EC05F9DF4E63C541AF04 /* Assets.xcassets */; };
+		9B66054355154109FBE1A0A6 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6750DD93A1F9D4300E7C047 /* MiniPlayerView.swift */; };
 		A4D9356AB4DAB4E5599D492D /* AirPlayButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1CE95299F125099585F8F5 /* AirPlayButton.swift */; };
 		A68FD25CEB1B66BF6F80E250 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8B653C3241ED6DA8F980A03 /* KeychainStore.swift */; };
 		A69BF3878AE55F5712CD3F15 /* TrackHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3236C0C95F84FE6B79FD05F /* TrackHeader.swift */; };
@@ -71,6 +72,7 @@
 		D98AD80D2D71B0E77AC67B56 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
 		DF8C41447C9D845BA6895824 /* DiskCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskCache.swift; sourceTree = "<group>"; };
 		E15538E5992BFEF29BD502EA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		E6750DD93A1F9D4300E7C047 /* MiniPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerView.swift; sourceTree = "<group>"; };
 		E6BE6737454F7D9B3C953691 /* MenuBarContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarContentView.swift; sourceTree = "<group>"; };
 		E901246B5799717124B501AC /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		F74608FDB91968FC2505C3B1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -173,6 +175,7 @@
 				550B72EA48A73C8B2EB9E2CA /* LibraryView.swift */,
 				F9CD3BF18714C1A35DA33D8B /* LyricsView.swift */,
 				E6BE6737454F7D9B3C953691 /* MenuBarContentView.swift */,
+				E6750DD93A1F9D4300E7C047 /* MiniPlayerView.swift */,
 				C56A92A3F166DECEC813C731 /* OnboardingView.swift */,
 				69E4359662D700D4FAE17BE6 /* PlaybackControls.swift */,
 				E15538E5992BFEF29BD502EA /* SettingsView.swift */,
@@ -270,6 +273,7 @@
 				911AA5D7EEBD23F03C83AAAE /* LyricsModels.swift in Sources */,
 				0DB717F79BCD8B8B9F0FDDCA /* LyricsView.swift in Sources */,
 				09FBC3423E3E5F960D37CCDB /* MenuBarContentView.swift in Sources */,
+				9B66054355154109FBE1A0A6 /* MiniPlayerView.swift in Sources */,
 				2BBE8063BB7C6BC0038609A3 /* MusicPlayerMonitor.swift in Sources */,
 				0F6E054B59F400608A17411E /* MusicTradApp.swift in Sources */,
 				09C8BBA1AFF575AC38220AD3 /* NetEaseClient.swift in Sources */,
