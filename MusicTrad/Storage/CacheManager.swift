@@ -70,6 +70,7 @@ nonisolated final class CacheManager: @unchecked Sendable {
             queue.async {
                 let dir = DiskCache.root.appending(path: "translations", directoryHint: .isDirectory)
                 for name in files { try? FileManager.default.removeItem(at: dir.appending(path: name)) }
+                LibraryIndex.shared.removeTranslations(files)
                 cont.resume()
             }
         }
@@ -104,6 +105,7 @@ nonisolated final class CacheManager: @unchecked Sendable {
                     removed += 1
                 }
                 self.log.info("Cache vidé : \(removed) fichier(s) supprimé(s), \(protected.count) protégé(s) gardé(s)")
+                LibraryIndex.shared.dropMissing()
                 cont.resume()
             }
         }
@@ -146,6 +148,7 @@ nonisolated final class CacheManager: @unchecked Sendable {
             }
         }
 
+        if removed > 0 { LibraryIndex.shared.dropMissing() }   // la bibliothèque oublie les sons supprimés
         let stats = computeStats(entries)
         log.info("Nettoyage : \(removed) fichier(s) supprimé(s), \(stats.bytes) octets, \(stats.songs) titre(s)")
         return stats

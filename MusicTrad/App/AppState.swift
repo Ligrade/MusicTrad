@@ -337,6 +337,7 @@ final class AppState {
             versionInfo = (next + 1, versions.count)
             guard chosen.fullText != current.fullText else { return }
             lyricsCache.save(chosen, key: Self.lyricsKey(track), label: "\(track.artist) – \(track.title)")
+            LibraryIndex.shared.lyricsChanged(file: DiskCache.fileName(for: Self.lyricsKey(track)))
             lyricsStatus = .loaded(chosen)
             retranslate()
         }
@@ -539,6 +540,7 @@ final class AppState {
               fresh.syncCheck(duration: track.duration) == .synced,
               !Task.isCancelled, currentTrackID == track.id else { return }
         lyricsCache.save(fresh, key: key, label: "\(track.artist) – \(track.title)")
+        LibraryIndex.shared.lyricsChanged(file: DiskCache.fileName(for: key))
         lyricsStatus = .loaded(fresh)
     }
 
@@ -645,8 +647,11 @@ final class AppState {
             translationStatus = .idle
             return
         }
-        if let cached = translationCache.load([String].self, key: Self.translationKey(track, lyrics, engine, target)),
-           cached.count == lyrics.lines.count {
+        let cachedKey = Self.translationKey(track, lyrics, engine, target)
+        if let cached = translationCache.load([String].self, key: cachedKey), cached.count == lyrics.lines.count {
+            if let sourceLanguage {
+                Self.indexTranslation(track, key: cachedKey, lines: cached, source: sourceLanguage, target: target)
+            }
             translationStatus = .done(cached)   // déjà traduit : affiché directement
             return
         }
@@ -702,6 +707,7 @@ final class AppState {
 
         let key = Self.translationKey(track, lyrics, engine, target)
         if let cached = translationCache.load([String].self, key: key), cached.count == lyrics.lines.count {
+            Self.indexTranslation(track, key: key, lines: cached, source: source, target: target)
             return .translated(cached)
         }
         if let running = translationTasks[key] { return .translated(try await running.value) }
@@ -720,11 +726,23 @@ final class AppState {
             var aligned = Array(repeating: "", count: count)
             for (i, idx) in indices.enumerated() { aligned[idx] = output[i] }
             translationCache.save(aligned, key: key, label: "\(track.artist) – \(track.title) [\(engine.rawValue), \(source.minimalIdentifier) → \(target.minimalIdentifier)]")
+            Self.indexTranslation(track, key: key, lines: aligned, source: source, target: target)
             return aligned
         }
         translationTasks[key] = task
         defer { translationTasks[key] = nil }
         return .translated(try await task.value)
+    }
+
+    /// Bibliothèque des sons traduits : note cette traduction dans l'index (enregistrée ou relue depuis le cache).
+    private static func indexTranslation(_ track: TrackInfo, key: String, lines: [String],
+                                         source: Locale.Language, target: Locale.Language) {
+        guard lines.contains(where: { !$0.isEmpty }) else { return }
+        LibraryIndex.shared.record(artist: track.artist, title: track.title, album: track.album,
+                                   lyricsFile: DiskCache.fileName(for: lyricsKey(track)),
+                                   translationFile: DiskCache.fileName(for: key),
+                                   source: source.minimalIdentifier.lowercased(),
+                                   target: target.minimalIdentifier.lowercased())
     }
 
     // MARK: Préchargement

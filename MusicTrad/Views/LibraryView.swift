@@ -31,8 +31,8 @@ struct LibraryView: View {
         }
         .clipped()
         .task {
-            // Lecture du cache hors du fil principal (quelques centaines de petits fichiers).
-            let loaded = await Task.detached(priority: .userInitiated) { TranslatedLibrary.load() }.value
+            // Liste lue dans l'index de la bibliothèque (file dédiée, hors du fil principal).
+            let loaded = await LibraryIndex.shared.entries()
             withAnimation(.easeOut(duration: 0.2)) { entries = loaded }
             app.refreshLibraryProtection(loaded)
             usedBytes = await CacheManager.shared.stats().bytes
@@ -167,6 +167,9 @@ private struct LibraryDetail: View {
     let onDelete: () -> Void
     @State private var confirmDelete = false
     @State private var hoveringTrash = false
+    /// Paroles et traduction, lues dans le cache à l'ouverture du son.
+    @State private var content: LibraryContent?
+    @State private var missing = false
     @AppStorage(SettingsKey.fontSize) private var fontSize = SettingsDefault.fontSize
     @AppStorage(SettingsKey.showOriginal) private var showOriginal = true
     @AppStorage(SettingsKey.translationScale) private var translationScale = SettingsDefault.translationScale
@@ -221,31 +224,48 @@ private struct LibraryDetail: View {
             .padding(.top, 10)
             .padding(.bottom, 6)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: fontSize * 0.7) {
-                    ForEach(entry.lyrics.lines) { line in
-                        // Pas de « ♪ » animés ici : une pause = un simple espace.
-                        if line.isBlank {
-                            Color.clear.frame(height: fontSize * 0.4)
-                        } else {
-                            LineRow(
-                                original: line.text,
-                                translation: entry.translation[safe: line.id],
-                                isCurrent: false,
-                                isPast: false,
-                                dimmed: false,
-                                onlyTranslation: !showOriginal,
-                                fontSize: fontSize,
-                                translationScale: translationScale,
-                                blurInactive: false,
-                                sourceIsFrench: entry.sourceIsFrench
-                            )
+            if let content {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: fontSize * 0.7) {
+                        ForEach(content.lyrics.lines) { line in
+                            // Pas de « ♪ » animés ici : une pause = un simple espace.
+                            if line.isBlank {
+                                Color.clear.frame(height: fontSize * 0.4)
+                            } else {
+                                LineRow(
+                                    original: line.text,
+                                    translation: content.translation[safe: line.id],
+                                    isCurrent: false,
+                                    isPast: false,
+                                    dimmed: false,
+                                    onlyTranslation: !showOriginal,
+                                    fontSize: fontSize,
+                                    translationScale: translationScale,
+                                    blurInactive: false,
+                                    sourceIsFrench: entry.sourceIsFrench
+                                )
+                            }
                         }
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 24)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
+            } else if missing {
+                ContentUnavailableView("Paroles introuvables", systemImage: "internaldrive",
+                                       description: Text("Elles ont quitté le cache."))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // Lecture quasi instantanée : un espace vide plutôt qu'un indicateur qui clignote.
+                Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .task(id: entry.id) {
+            let loaded = await TranslatedLibrary.content(for: entry)
+            withAnimation(.easeOut(duration: 0.15)) {
+                content = loaded
+                missing = loaded == nil
             }
         }
     }
