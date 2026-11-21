@@ -26,6 +26,7 @@ enum SettingsKey {
     static let onboardingSeen = "onboardingSeen"
     static let bubbleCompact = "bubbleCompact"
     static let animatedArtwork = "animatedArtwork"
+    static let albumBackground = "albumBackground"
     static let libraryFavorites = "libraryFavorites"
     static let settingsTab = "settingsTab"
     static let floatingWindowEnabled = "floatingWindowEnabled"

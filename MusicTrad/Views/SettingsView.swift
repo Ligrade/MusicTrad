@@ -117,15 +117,20 @@ private struct DisplaySettings: View {
     @AppStorage(SettingsKey.blurInactive) private var blurInactive = true
     @AppStorage(SettingsKey.syncOffset) private var syncOffset = SettingsDefault.syncOffset
     @AppStorage(SettingsKey.animatedArtwork) private var animatedArtwork = false
+    @AppStorage(SettingsKey.albumBackground) private var albumBackground = true
 
     var body: some View {
         Form {
             Section {
+                Picker("Fond des paroles", selection: $albumBackground) {
+                    Text("Noir").tag(false)
+                    Text("Couleur de l'album").tag(true)
+                }
                 Toggle("Pochette animée", isOn: $animatedArtwork)
             } header: {
-                Text("Petit lecteur")
+                Text("Apparence")
             } footer: {
-                Text("Quand l'album en a une sur Apple Music, elle remplit le lecteur réduit pendant la lecture, et se met en pause dès qu'une autre fenêtre passe devant. Consomme un peu plus.")
+                Text("Couleur de l'album : la pochette floutée derrière les paroles, en fondu d'un son à l'autre. Pochette animée : quand l'album en a une sur Apple Music, elle remplit le lecteur réduit pendant la lecture, et se met en pause dès qu'une autre fenêtre passe devant. Consomme un peu plus.")
             }
 
             Section("Texte") {

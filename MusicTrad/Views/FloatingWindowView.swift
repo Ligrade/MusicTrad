@@ -21,7 +21,7 @@ struct FloatingWindowView: View {
         }
         .frame(minWidth: 360, minHeight: 320)
         .containerBackground(LyricsPalette.background, for: .window)
-        .background(LyricsPalette.background)
+        .background { LyricsBackground() }
         .preferredColorScheme(.dark)
         .onAppear { app.viewAppeared() }
         .onDisappear { app.viewDisappeared() }

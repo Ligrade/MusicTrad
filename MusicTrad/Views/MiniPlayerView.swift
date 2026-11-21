@@ -372,3 +372,40 @@ private final class MotionArtworkNSView: NSView {
         CATransaction.commit()
     }
 }
+
+/// Fond « couleur de l'album » derrière les paroles : la pochette très floutée et assombrie,
+/// en fondu d'un morceau à l'autre (comme le petit lecteur). Noir si rien ne joue.
+struct AlbumBackdrop: View {
+    @Environment(AppState.self) private var app
+
+    var body: some View {
+        ZStack {
+            LyricsPalette.background
+            Color.clear.overlay {
+                if let image = app.artwork {
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .blur(radius: 60)
+                        .opacity(0.6)
+                        .id(app.artworkID)
+                        .transition(.opacity)
+                }
+            }
+            .clipped()
+            Color.black.opacity(0.45)
+        }
+        .animation(.easeInOut(duration: 0.8), value: app.artworkID)
+        .allowsHitTesting(false)
+    }
+}
+
+/// Fond de la bulle et de la fenêtre flottante, selon le réglage (noir ou couleur de l'album).
+struct LyricsBackground: View {
+    @Environment(AppState.self) private var app
+    @AppStorage(SettingsKey.albumBackground) private var albumBackground = true
+
+    var body: some View {
+        if albumBackground && !app.ecoMode { AlbumBackdrop() } else { LyricsPalette.background }
+    }
+}

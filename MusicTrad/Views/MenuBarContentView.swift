@@ -48,7 +48,7 @@ struct MenuBarContentView: View {
                                           fixedSize: app.ecoMode ? CGSize(width: 420, height: 420)
                                               : app.bubbleCompact ? CGSize(width: MiniPlayerView.side, height: MiniPlayerView.side) : nil))
         .environment(\.inMenuBubble, true)
-        .background(LyricsPalette.background)
+        .background { LyricsBackground() }
         .preferredColorScheme(.dark)
         .onAppear { app.viewAppeared() }
         .onDisappear {
