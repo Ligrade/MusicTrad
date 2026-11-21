@@ -7,6 +7,8 @@ extension EnvironmentValues {
 
 struct MenuBarContentView: View {
     @Environment(AppState.self) private var app
+    /// Présentation des fonctions, montrée tant que « J'ai compris » n'a pas été cliqué.
+    @AppStorage(SettingsKey.onboardingSeen) private var onboardingSeen = false
 
     var body: some View {
         Group {
@@ -31,6 +33,12 @@ struct MenuBarContentView: View {
                         .padding(.vertical, 12)
                 }
                 .frame(width: 560)
+                .overlay {
+                    if !onboardingSeen {
+                        OnboardingView { withAnimation(.easeOut(duration: 0.25)) { onboardingSeen = true } }
+                            .transition(.opacity)
+                    }
+                }
                 .transition(.opacity.combined(with: .scale(scale: 0.96)))
             }
         }

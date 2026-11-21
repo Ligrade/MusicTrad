@@ -34,6 +34,7 @@ private struct GeneralSettings: View {
     @AppStorage(SettingsKey.floatingWindowEnabled) private var floatingWindowEnabled = false
     @AppStorage(SettingsKey.openWindowAtLaunch) private var openWindowAtLaunch = false
     @AppStorage(SettingsKey.ecoAtLaunch) private var ecoAtLaunch = false
+    @AppStorage(SettingsKey.onboardingSeen) private var onboardingSeen = false
     @AppStorage(SettingsKey.autoEcoMinutes) private var autoEcoMinutes = 30
     @AppStorage(SettingsKey.myStationURL) private var myStationURL = ""
     @Environment(\.dismissWindow) private var dismissWindow
@@ -54,6 +55,8 @@ private struct GeneralSettings: View {
                         }
                     }
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.orange) }
+                Button("Revoir la présentation des fonctions") { onboardingSeen = false }
+                    .disabled(!onboardingSeen)
                 Toggle("Démarrer en mode éco", isOn: $ecoAtLaunch)
                 Text("L'app se lance en veille : clique sur le bouton vert pour la réactiver.")
                     .font(.caption).foregroundStyle(.secondary)

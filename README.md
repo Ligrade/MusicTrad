@@ -13,7 +13,7 @@
 
 ## Ce que fait l'app
 
-- **Détecte le morceau en cours** dans l'app Musique (titre, artiste, album, durée, position) par AppleScript, toutes les 0,5 s.
+- **Détecte le morceau en cours** dans l'app Musique (titre, artiste, album, durée, position) par AppleScript : toutes les 0,5 s quand les paroles sont affichées, sinon seulement quand Musique signale un changement (quasi 0 % de CPU bulle fermée).
 - **Récupère les paroles** sur [LRCLIB](https://lrclib.net), une API publique et gratuite, en préférant les paroles synchronisées ; si LRCLIB n'a pas de version synchronisée cohérente, l'app interroge aussi NetEase Cloud Music, en parallèle.
 - **Traduit en français** chaque ligne, avec la traduction affichée sous l'original, au fil de l'eau :
   - **Apple** (par défaut) : traduction sur le Mac avec le framework Translation, gratuite, hors ligne et privée ;
@@ -24,10 +24,11 @@
 - **Marque les passages instrumentaux** : ♪♪♪ qui s'allument au fil du solo, même quand le fichier de paroles ne les indique pas.
 - **Prépare le morceau suivant** à l'avance (playlist en cours, ou titre suivant de l'album via l'API publique Deezer).
 - **Chanson en français** : pas de traduction par défaut ; un réglage permet de la traduire en anglais (le français reste en blanc, l'anglais passe en rouge).
-- **Pilule EN → FR** : un clic coupe la traduction (paroles originales seules, rien n'est traduit), un autre la relance ; le choix est retenu.
+- **Traduction à la demande** : rien n'est traduit tant que tu ne cliques pas sur la pilule **EN → FR** (un son déjà traduit s'affiche directement) ; re-clic : paroles originales seules ; **clic droit** : traduction automatique (indicateur ∞, aussi dans les Réglages).
 - Affiche la **pochette** (un clic ouvre l'album dans Musique ; grise en pause), l'**artiste** (un clic ouvre sa page dans Musique), une **étoile favori** synchronisée avec Musique, un **cœur** pour sauver la traduction du son (jamais supprimée), les commandes **⏮ ⏯ ⏭** et le choix de la **sortie AirPlay**.
 - **Musique fermée ou à l'arrêt** : un bouton rouge ♫ ouvre Musique ; sans lecture en cours, **Ma station** (ta station personnelle, lien à coller dans les Réglages) ou **Mes likes** (tes morceaux préférés).
 - **Sons déjà traduits** (pilule 💽 à côté de la langue) : la liste des morceaux traduits avec leurs pochettes et une recherche ; un clic pour relire paroles et traduction, ▶︎ pour l'écouter tout de suite, ♥ pour garder ces paroles pour toujours (jamais supprimées du cache). La place restante et la règle de suppression sont affichées en haut.
+- **Présentation des fonctions** au premier lancement, page par page (à revoir dans Réglages › Général).
 - Garde paroles et traductions en **cache**, avec un nettoyage automatique.
 - **Mode éco** (🍃 en haut à droite, automatique après 30 min sans ouvrir l'app par défaut) : l'app reste dans la barre des menus (bulle avec une petite feuille) mais ne consomme plus rien ; la bulle devient un petit carré avec un bouton vert pour la réactiver. En marche, bulle fermée, elle tourne autour de 1 % de CPU.
 

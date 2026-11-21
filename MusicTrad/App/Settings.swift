@@ -23,6 +23,7 @@ enum SettingsKey {
     static let frenchToEnglish = "frenchToEnglish"
     static let translationHidden = "translationHidden"
     static let autoTranslate = "autoTranslate"
+    static let onboardingSeen = "onboardingSeen"
     static let libraryFavorites = "libraryFavorites"
     static let settingsTab = "settingsTab"
     static let floatingWindowEnabled = "floatingWindowEnabled"

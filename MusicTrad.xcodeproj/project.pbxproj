@@ -14,6 +14,7 @@
 		0F6E054B59F400608A17411E /* MusicTradApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 268A3C11C1A02F498B58E9AA /* MusicTradApp.swift */; };
 		185E73AC88DAB7C3A3170ED5 /* EcoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 417DC58D066C2F3107864651 /* EcoView.swift */; };
 		1BBBC67FDF2A75932142AB0D /* DiskCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF8C41447C9D845BA6895824 /* DiskCache.swift */; };
+		27763536DF3DC7423DC21454 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56A92A3F166DECEC813C731 /* OnboardingView.swift */; };
 		2BBE8063BB7C6BC0038609A3 /* MusicPlayerMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F463B34E4C3ECF31542CC8D /* MusicPlayerMonitor.swift */; };
 		2DFB640A9BD73E8744A54A98 /* ArtworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50EC35C1967070DB3C73BE74 /* ArtworkService.swift */; };
 		3FEA4F213D9AEC32B04E4D6B /* TrackInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 510F9B4BA57705BB302C0AD0 /* TrackInfo.swift */; };
@@ -65,6 +66,7 @@
 		9D88B9831BB47F8F144D2BE0 /* SyncBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncBadge.swift; sourceTree = "<group>"; };
 		A3236C0C95F84FE6B79FD05F /* TrackHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackHeader.swift; sourceTree = "<group>"; };
 		BDFD780D0C7AA37606FFE5A3 /* NextTrackPredictor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextTrackPredictor.swift; sourceTree = "<group>"; };
+		C56A92A3F166DECEC813C731 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		C8B653C3241ED6DA8F980A03 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		D98AD80D2D71B0E77AC67B56 /* TranslationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationService.swift; sourceTree = "<group>"; };
 		DF8C41447C9D845BA6895824 /* DiskCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskCache.swift; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 				550B72EA48A73C8B2EB9E2CA /* LibraryView.swift */,
 				F9CD3BF18714C1A35DA33D8B /* LyricsView.swift */,
 				E6BE6737454F7D9B3C953691 /* MenuBarContentView.swift */,
+				C56A92A3F166DECEC813C731 /* OnboardingView.swift */,
 				69E4359662D700D4FAE17BE6 /* PlaybackControls.swift */,
 				E15538E5992BFEF29BD502EA /* SettingsView.swift */,
 				9D88B9831BB47F8F144D2BE0 /* SyncBadge.swift */,
@@ -271,6 +274,7 @@
 				0F6E054B59F400608A17411E /* MusicTradApp.swift in Sources */,
 				09C8BBA1AFF575AC38220AD3 /* NetEaseClient.swift in Sources */,
 				8C3CD76ECF3573F2310D8759 /* NextTrackPredictor.swift in Sources */,
+				27763536DF3DC7423DC21454 /* OnboardingView.swift in Sources */,
 				CB821913049185858CDD487A /* PlaybackControls.swift in Sources */,
 				4B8CF5AB8514951CF06F4716 /* Settings.swift in Sources */,
 				C45801759D6A5A17DC29BB7B /* SettingsView.swift in Sources */,
