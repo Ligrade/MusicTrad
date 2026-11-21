@@ -39,6 +39,10 @@
 		D688D8FD5BC61FA6F394968D /* LibraryIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67744D99E9806154E96CC650 /* LibraryIndex.swift */; };
 		F3ADC1C81F2965BA0F3C6320 /* DeepLTranslator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC702325C4ADFEF16E51192 /* DeepLTranslator.swift */; };
 		F9A14320438DDE4B426A0403 /* CacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09E80FA1D98DF0966A7C035D /* CacheManager.swift */; };
+		68AAB3C4F47973517CA94B47 /* PlaybackClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59CF171B2A692430A157B68F /* PlaybackClock.swift */; };
+		8B8CED36C2900AF6ACCD7843 /* ArtworkBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667EF6A1A8A8D0A2DB462B01 /* ArtworkBackdrop.swift */; };
+		77312268B72BC2CC134FE146 /* LyricsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A44C1B50FF4E6899DD2D90F7 /* LyricsStore.swift */; };
+		DBB54E6ADE18DA42A864B3A5 /* TranslationStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0826B7EBA03D170CD75416C /* TranslationStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -77,15 +81,21 @@
 		E901246B5799717124B501AC /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		F74608FDB91968FC2505C3B1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F9CD3BF18714C1A35DA33D8B /* LyricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsView.swift; sourceTree = "<group>"; };
+		59CF171B2A692430A157B68F /* PlaybackClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackClock.swift; sourceTree = "<group>"; };
+		667EF6A1A8A8D0A2DB462B01 /* ArtworkBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkBackdrop.swift; sourceTree = "<group>"; };
+		A44C1B50FF4E6899DD2D90F7 /* LyricsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsStore.swift; sourceTree = "<group>"; };
+		F0826B7EBA03D170CD75416C /* TranslationStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
 		15F819567595736E7B97C75A /* Player */ = {
 			isa = PBXGroup;
 			children = (
+				667EF6A1A8A8D0A2DB462B01 /* ArtworkBackdrop.swift */,
 				50EC35C1967070DB3C73BE74 /* ArtworkService.swift */,
 				7F463B34E4C3ECF31542CC8D /* MusicPlayerMonitor.swift */,
 				BDFD780D0C7AA37606FFE5A3 /* NextTrackPredictor.swift */,
+				59CF171B2A692430A157B68F /* PlaybackClock.swift */,
 				510F9B4BA57705BB302C0AD0 /* TrackInfo.swift */,
 			);
 			path = Player;
@@ -97,6 +107,7 @@
 				69A60AB00114C71866DAF710 /* AppleTranslator.swift */,
 				3CC702325C4ADFEF16E51192 /* DeepLTranslator.swift */,
 				D98AD80D2D71B0E77AC67B56 /* TranslationService.swift */,
+				F0826B7EBA03D170CD75416C /* TranslationStore.swift */,
 			);
 			path = Translation;
 			sourceTree = "<group>";
@@ -145,6 +156,7 @@
 				2967549C93FDD38D45600E35 /* LRCLIBClient.swift */,
 				6276EC57A2480F91E3039A68 /* LRCParser.swift */,
 				973241DF63D89952AE90EC2B /* LyricsModels.swift */,
+				A44C1B50FF4E6899DD2D90F7 /* LyricsStore.swift */,
 				7921207AB609C231F850E2B0 /* NetEaseClient.swift */,
 			);
 			path = Lyrics;
@@ -287,6 +299,10 @@
 				3FEA4F213D9AEC32B04E4D6B /* TrackInfo.swift in Sources */,
 				5ABE0CA32C9555C0AFC91F56 /* TranslatedLibrary.swift in Sources */,
 				4692E5C9F889613C98899914 /* TranslationService.swift in Sources */,
+				DBB54E6ADE18DA42A864B3A5 /* TranslationStore.swift in Sources */,
+				77312268B72BC2CC134FE146 /* LyricsStore.swift in Sources */,
+				8B8CED36C2900AF6ACCD7843 /* ArtworkBackdrop.swift in Sources */,
+				68AAB3C4F47973517CA94B47 /* PlaybackClock.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

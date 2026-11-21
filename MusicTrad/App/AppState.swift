@@ -1,28 +1,11 @@
 import AppKit
-import CoreImage
 import Foundation
 import Observation
 import OSLog
 
-enum LyricsStatus: Equatable {
-    case idle
-    case loading
-    case loaded(Lyrics)
-    case notFound
-    case failed(String)
-}
-
-enum TranslationStatus: Equatable {
-    case idle
-    case translating
-    case partial([String])       // en cours, lignes déjà traduites (les autres vides)
-    case done([String])          // aligné sur Lyrics.lines
-    case alreadyFrench
-    case needsDownload(Locale.Language, Locale.Language)   // source, cible
-    case failed(String)
-}
-
 /// Coordonne lecteur → paroles → traduction.
+/// Le travail lui-même est ailleurs : horloge de lecture (PlaybackClock), paroles (LyricsStore),
+/// traductions (TranslationStore). AppState garde l'état affiché et décide quoi charger et quand.
 @Observable
 final class AppState {
     private(set) var playback: PlaybackState = .musicNotRunning
@@ -30,22 +13,10 @@ final class AppState {
     private(set) var translationStatus: TranslationStatus = .idle
     private(set) var sourceLanguage: Locale.Language?
     private(set) var artwork: NSImage? {
-        didSet { artworkBackdrop = artwork.flatMap(Self.backdrop(from:)) }
+        didSet { artworkBackdrop = artwork.flatMap(ArtworkBackdrop.make(from:)) }
     }
-    /// Pochette réduite et floutée une fois pour toutes, pour les fonds « couleur de l'album » :
-    /// une image toute prête coûte bien moins qu'un flou recalculé à chaque image affichée.
+    /// Pochette réduite et floutée pour les fonds « couleur de l'album » (voir ArtworkBackdrop).
     private(set) var artworkBackdrop: NSImage?
-    @ObservationIgnored private static let ciContext = CIContext()
-
-    private static func backdrop(from image: NSImage) -> NSImage? {
-        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
-        let source = CIImage(cgImage: cg)
-        let scale = 64 / max(source.extent.width, source.extent.height, 1)
-        let small = source.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        let blurred = small.clampedToExtent().applyingGaussianBlur(sigma: 5).cropped(to: small.extent)
-        guard let out = ciContext.createCGImage(blurred, from: small.extent) else { return nil }
-        return NSImage(cgImage: out, size: NSSize(width: out.width, height: out.height))
-    }
     /// Morceau auquel appartient la pochette affichée : la pochette ne change (et ne s'anime)
     /// qu'une fois la nouvelle chargée, pour qu'elle prenne directement la place de l'ancienne.
     private(set) var artworkID: String?
@@ -56,9 +27,8 @@ final class AppState {
     private(set) var favoriteError: String?
 
     private let monitor = MusicPlayerMonitor()
-    private let finder = LyricsFinder()
-    private let lyricsCache = DiskCache(folder: "lyrics")
-    private let translationCache = DiskCache(folder: "translations")
+    private let lyricsStore = LyricsStore()
+    private let translationStore = TranslationStore()
     private var currentTrackID: String?
     private var loadTask: Task<Void, Never>?
     private var artworkTask: Task<Void, Never>?
@@ -67,8 +37,6 @@ final class AppState {
     @ObservationIgnored private var prefetchTask: Task<Void, Never>?
     @ObservationIgnored private var maintenanceTask: Task<Void, Never>?
     @ObservationIgnored private var protectionSignature: String?
-    @ObservationIgnored private var lyricsTasks: [String: Task<Lyrics?, Error>] = [:]
-    @ObservationIgnored private var translationTasks: [String: Task<[String], Error>] = [:]
     private static let log = Logger(subsystem: "fr.dynamicagence.MusicTrad", category: "prefetch")
 
     var track: TrackInfo? { playback.track }
@@ -121,36 +89,15 @@ final class AppState {
         if visibleViews == 0 { monitor.setVisible(false) }
     }
 
-    /// Dernière position lue dans Musique et l'instant de la lecture.
-    @ObservationIgnored private var anchor = (position: TimeInterval(0), at: Date(), playing: false)
+    /// Position de lecture estimée entre deux lectures de Musique.
+    @ObservationIgnored private var clock = PlaybackClock()
     @ObservationIgnored private var ticker: Task<Void, Never>?
 
     /// Position estimée maintenant : dernière position lue + temps écoulé depuis.
-    private var livePosition: TimeInterval {
-        anchor.playing ? anchor.position + Date().timeIntervalSince(anchor.at) : anchor.position
-    }
+    private var livePosition: TimeInterval { clock.position }
 
     /// Position estimée maintenant (pour la barre de progression du petit lecteur).
     var playerPosition: TimeInterval { livePosition }
-
-    @ObservationIgnored private var seekGuardUntil = Date.distantPast
-
-    private func updateAnchor(_ state: PlaybackState, sameTrack: Bool) {
-        let polled = state.position
-        // Juste après un saut, une lecture partie avant le saut ne doit pas ramener en arrière.
-        if sameTrack, Date() < seekGuardUntil, abs(polled - livePosition) > 1 { return }
-        if sameTrack, state.isPlaying, anchor.playing {
-            // Petit écart (latence d'AppleScript) : on se rapproche en douceur de la position de Musique,
-            // dans les deux sens. Avant, l'horloge ne reculait jamais et finissait légèrement en avance.
-            let estimate = livePosition
-            let error = polled - estimate
-            if abs(error) < 0.4 {
-                anchor = (estimate + error * 0.3, Date(), true)
-                return
-            }
-        }
-        anchor = (polled, Date(), state.isPlaying)
-    }
 
     /// Avancement (0 → 1) du passage instrumental en cours, pour l'animation ♪♪♪.
     private(set) var breakProgress: Double = 0
@@ -243,7 +190,7 @@ final class AppState {
         let on = !libraryFavorites.contains(id)
         if on { libraryFavorites.insert(id) } else { libraryFavorites.remove(id) }
         UserDefaults.standard.set(Array(libraryFavorites).sorted(), forKey: SettingsKey.libraryFavorites)
-        let keys = [Self.lyricsKey(track), Self.translationKey(track, lyrics, engine, translationTarget),
+        let keys = [LyricsStore.key(for: track), TranslationStore.key(track, lyrics, engine, translationTarget),
                     "\(track.artist)|\(track.album)", "library|\(track.artist)|\(track.title)"]
         CacheManager.shared.setProtected(on, song: "library|\(id)", files: keys.map(DiskCache.fileName(for:)))
     }
@@ -311,8 +258,7 @@ final class AppState {
     func seek(seconds: TimeInterval) {
         guard let track else { return }
         let target = min(max(0, seconds), max(track.duration - 0.5, 0))
-        anchor = (target, Date(), anchor.playing)
-        seekGuardUntil = Date().addingTimeInterval(1.5)
+        clock.jump(to: target)
         refreshCurrentLine()
         monitor.seek(to: target)
     }
@@ -334,8 +280,7 @@ final class AppState {
             return
         }
         let target = max(0, time - songOffset)
-        anchor = (target, Date(), anchor.playing)
-        seekGuardUntil = Date().addingTimeInterval(1.5)
+        clock.jump(to: target)
         refreshCurrentLine()
         monitor.seek(to: target)
     }
@@ -354,19 +299,11 @@ final class AppState {
     /// « version 2 sur 5 » après avoir essayé une autre version.
     private(set) var versionInfo: (index: Int, count: Int)?
     @ObservationIgnored private var versions: [Lyrics] = []
-    @ObservationIgnored private var refreshedKeys: Set<String> = []
-    private static let songOffsetsKey = "songSyncOffsets"
 
     func setSongOffset(_ value: Double) {
         guard let track else { return }
         songOffset = (value * 10).rounded() / 10
-        var all = UserDefaults.standard.dictionary(forKey: Self.songOffsetsKey) as? [String: Double] ?? [:]
-        all[Self.lyricsKey(track)] = songOffset == 0 ? nil : songOffset
-        UserDefaults.standard.set(all, forKey: Self.songOffsetsKey)
-    }
-
-    private static func savedSongOffset(_ track: TrackInfo) -> Double {
-        (UserDefaults.standard.dictionary(forKey: songOffsetsKey) as? [String: Double])?[lyricsKey(track)] ?? 0
+        LyricsStore.saveOffset(songOffset, for: track)
     }
 
     /// Passe à la version suivante des paroles sur LRCLIB (album, radio edit, live…).
@@ -376,7 +313,7 @@ final class AppState {
         Task {
             defer { searchingVersion = false }
             if versions.isEmpty {
-                versions = await finder.allVersions(for: track)
+                versions = await lyricsStore.allVersions(for: track)
             }
             guard currentTrackID == track.id, !versions.isEmpty else { return }
             let start = versions.firstIndex { $0.fullText == current.fullText } ?? -1
@@ -384,8 +321,7 @@ final class AppState {
             let chosen = versions[next]
             versionInfo = (next + 1, versions.count)
             guard chosen.fullText != current.fullText else { return }
-            lyricsCache.save(chosen, key: Self.lyricsKey(track), label: "\(track.artist) – \(track.title)")
-            LibraryIndex.shared.lyricsChanged(file: DiskCache.fileName(for: Self.lyricsKey(track)))
+            lyricsStore.replace(chosen, for: track)
             lyricsStatus = .loaded(chosen)
             retranslate()
         }
@@ -537,12 +473,13 @@ final class AppState {
     private func updateFavoriteProtection() {
         guard let track, let lyrics else { return }
         let favorite = isFavorited
-        let translationKey = Self.translationKey(track, lyrics, engine)
+        let translationKey = TranslationStore.key(track, lyrics, engine)
+        let lyricsKey = LyricsStore.key(for: track)
         let signature = "\(track.id)|\(favorite)|\(translationKey)|\(translations != nil)"
         guard signature != protectionSignature else { return }
         protectionSignature = signature
-        CacheManager.shared.setProtected(favorite, song: Self.lyricsKey(track),
-                                         cacheKeys: [Self.lyricsKey(track), translationKey, "\(track.artist)|\(track.album)"])
+        CacheManager.shared.setProtected(favorite, song: lyricsKey,
+                                         cacheKeys: [lyricsKey, translationKey, "\(track.artist)|\(track.album)"])
     }
 
     var isFavorited: Bool {
@@ -568,7 +505,7 @@ final class AppState {
 
     private func handle(_ state: PlaybackState) {
         guard !ecoMode else { return }   // lecture partie juste avant le passage en éco
-        updateAnchor(state, sameTrack: state.track?.id == currentTrackID)
+        clock.update(with: state, sameTrack: state.track?.id == currentTrackID)
         if state.withoutPosition != playback.withoutPosition { playback = state }
         if let o = favoriteOverride, state.track?.id != o.id || state.track?.isFavorited == o.value {
             favoriteOverride = nil   // Musique a confirmé (ou le morceau a changé)
@@ -586,7 +523,7 @@ final class AppState {
         calibrating = false
         translationRequested = translateNextTrack
         translateNextTrack = false
-        songOffset = state.track.map(Self.savedSongOffset) ?? 0
+        songOffset = state.track.map(LyricsStore.savedOffset(for:)) ?? 0
         artworkTask?.cancel()
         if let track = state.track {
             // Lecteur réduit : sobre comme le mode éco, pas de paroles (chargées au dépliage).
@@ -619,14 +556,14 @@ final class AppState {
     // MARK: Paroles
 
     private func load(_ track: TrackInfo) async {
-        if let cached = lyricsCache.load(Lyrics.self, key: Self.lyricsKey(track))?.withInstrumentalBreaks() {
+        if let cached = lyricsStore.cached(track) {
             lyricsStatus = .loaded(cached)
             await refreshIfDoubtful(cached, track: track)
             guard !Task.isCancelled else { return }
         } else {
             lyricsStatus = .loading
             do {
-                let result = try await fetchLyrics(track)
+                let result = try await lyricsStore.fetch(track)
                 guard !Task.isCancelled else { return }
                 guard let result else { lyricsStatus = .notFound; return }
                 lyricsStatus = .loaded(result)
@@ -641,42 +578,13 @@ final class AppState {
         prefetchNext(after: track)
     }
 
-    /// Paroles en cache non synchronisées ou au timing douteux : une fois par session,
-    /// on regarde si LRCLIB a mieux (cas des caches faits avant la vérification).
+    /// Paroles en cache douteuses : une fois par session, on regarde si LRCLIB a mieux
+    /// et on l'affiche si le morceau est toujours celui en cours.
     private func refreshIfDoubtful(_ cached: Lyrics, track: TrackInfo) async {
-        let key = Self.lyricsKey(track)
-        // Aussi les caches faits avant le choix par consensus (revision < 2), une seule fois.
-        let outdated = (cached.revision ?? 0) < Lyrics.currentRevision
-        guard !cached.isInstrumental, outdated || cached.syncCheck(duration: track.duration) != .synced,
-              refreshedKeys.insert(key).inserted,
-              let fresh = try? await finder.best(for: track),
-              fresh.syncCheck(duration: track.duration) == .synced,
+        guard let fresh = await lyricsStore.betterVersionIfDoubtful(cached, track: track),
               !Task.isCancelled, currentTrackID == track.id else { return }
-        lyricsCache.save(fresh, key: key, label: "\(track.artist) – \(track.title)")
-        LibraryIndex.shared.lyricsChanged(file: DiskCache.fileName(for: key))
+        lyricsStore.replace(fresh, for: track)
         lyricsStatus = .loaded(fresh)
-    }
-
-    /// Clé indépendante de l'artiste et de la durée, pour que le morceau préchargé
-    /// (titre venant de Deezer) retombe sur la même entrée que celui lu par Musique.
-    private static func lyricsKey(_ t: TrackInfo) -> String {
-        "\(t.album.normalizedForMatch)|\(t.title.normalizedForMatch)"
-    }
-
-    /// Paroles depuis le cache ou LRCLIB. Les requêtes identiques en cours sont partagées
-    /// (morceau préchargé qui devient le morceau en cours).
-    private func fetchLyrics(_ track: TrackInfo) async throws -> Lyrics? {
-        let key = Self.lyricsKey(track)
-        if let cached = lyricsCache.load(Lyrics.self, key: key) { return cached.withInstrumentalBreaks() }
-        if let running = lyricsTasks[key] { return try await running.value }
-        let task = Task { [finder, lyricsCache] () throws -> Lyrics? in
-            let result = try await finder.best(for: track)
-            if let result { lyricsCache.save(result, key: key, label: "\(track.artist) – \(track.title)") }
-            return result
-        }
-        lyricsTasks[key] = task
-        defer { lyricsTasks[key] = nil }
-        return try await task.value
     }
 
     // MARK: Traduction
@@ -687,12 +595,6 @@ final class AppState {
         loadTask?.cancel()
         loadTask = Task { await translate(track) }
     }
-
-    private enum TranslationOutcome {
-        case french
-        case translated([String])
-    }
-
 
     /// Pilule « EN → FR » barrée : aucune traduction, paroles originales seules (re-clic : on retraduit).
     private(set) var translationHidden = UserDefaults.standard.bool(forKey: SettingsKey.translationHidden)
@@ -785,11 +687,8 @@ final class AppState {
             translationStatus = .idle
             return
         }
-        let cachedKey = Self.translationKey(track, lyrics, engine, target)
-        if let cached = translationCache.load([String].self, key: cachedKey), cached.count == lyrics.lines.count {
-            if let sourceLanguage {
-                Self.indexTranslation(track, key: cachedKey, lines: cached, source: sourceLanguage, target: target)
-            }
+        if let cached = translationStore.cached(track, lyrics: lyrics, engine: engine,
+                                                target: target, source: sourceLanguage) {
             translationStatus = .done(cached)   // déjà traduit : affiché directement
             return
         }
@@ -801,7 +700,7 @@ final class AppState {
         if sourceLanguage.map({ $0.sameLanguage(as: target) }) != true { translationStatus = .translating }
 
         do {
-            let outcome = try await fetchTranslation(track, lyrics: lyrics, engine: engine, target: target) { [weak self] line, text in
+            let outcome = try await translationStore.fetch(track, lyrics: lyrics, engine: engine, target: target) { [weak self] line, text in
                 self?.showPartial(trackID: track.id, line: line, text: text, count: lyrics.lines.count)
             }
             guard !Task.isCancelled, currentTrackID == track.id else { return }
@@ -831,58 +730,6 @@ final class AppState {
         translationStatus = .partial(lines)
     }
 
-    private static func translationKey(_ t: TrackInfo, _ lyrics: Lyrics, _ engine: TranslationEngine,
-                                       _ target: Locale.Language = .french) -> String {
-        "\(engine.rawValue)|\(target.languageCode?.identifier ?? "fr")|v2|\(lyricsKey(t))|\(lyrics.fullText.hashValueStable)"
-    }
-
-    /// Traduction depuis le cache ou le moteur choisi, sans toucher à l'affichage.
-    private func fetchTranslation(_ track: TrackInfo, lyrics: Lyrics, engine: TranslationEngine,
-                                  target: Locale.Language = .french,
-                                  onLine: (@MainActor (Int, String) -> Void)? = nil) async throws -> TranslationOutcome {
-        guard let source = LanguageDetector.detect(lyrics.fullText) else { throw TranslationFailure.languageNotDetected }
-        if source.sameLanguage(as: target) { return .french }
-
-        let key = Self.translationKey(track, lyrics, engine, target)
-        if let cached = translationCache.load([String].self, key: key), cached.count == lyrics.lines.count {
-            Self.indexTranslation(track, key: key, lines: cached, source: source, target: target)
-            return .translated(cached)
-        }
-        if let running = translationTasks[key] { return .translated(try await running.value) }
-
-        // On ne traduit que les lignes non vides, en gardant la correspondance.
-        let indices = lyrics.lines.indices.filter { !lyrics.lines[$0].isBlank }
-        let input = indices.map { lyrics.lines[$0].text }
-        let count = lyrics.lines.count
-        let task = Task { [translationCache] () throws -> [String] in
-            let translator: LyricsTranslator = engine == .deepl ? DeepLTranslator() : AppleTranslator()
-            let output = try await translator.translate(lines: input, from: source, to: target) { i, text in
-                guard let onLine, indices.indices.contains(i) else { return }
-                let line = indices[i]
-                Task { @MainActor in onLine(line, text) }
-            }
-            var aligned = Array(repeating: "", count: count)
-            for (i, idx) in indices.enumerated() { aligned[idx] = output[i] }
-            translationCache.save(aligned, key: key, label: "\(track.artist) – \(track.title) [\(engine.rawValue), \(source.minimalIdentifier) → \(target.minimalIdentifier)]")
-            Self.indexTranslation(track, key: key, lines: aligned, source: source, target: target)
-            return aligned
-        }
-        translationTasks[key] = task
-        defer { translationTasks[key] = nil }
-        return .translated(try await task.value)
-    }
-
-    /// Bibliothèque des sons traduits : note cette traduction dans l'index (enregistrée ou relue depuis le cache).
-    private static func indexTranslation(_ track: TrackInfo, key: String, lines: [String],
-                                         source: Locale.Language, target: Locale.Language) {
-        guard lines.contains(where: { !$0.isEmpty }) else { return }
-        LibraryIndex.shared.record(artist: track.artist, title: track.title, album: track.album,
-                                   lyricsFile: DiskCache.fileName(for: lyricsKey(track)),
-                                   translationFile: DiskCache.fileName(for: key),
-                                   source: source.minimalIdentifier.lowercased(),
-                                   target: target.minimalIdentifier.lowercased())
-    }
-
     // MARK: Préchargement
 
     /// Prépare paroles et traduction du morceau suivant pendant que celui-ci joue.
@@ -897,26 +744,17 @@ final class AppState {
             }
             Self.log.info("Préchargement : « \(next.title, privacy: .public) » (\(next.artist, privacy: .public))")
             do {
-                guard let lyrics = try await fetchLyrics(next), !lyrics.isInstrumental else {
+                guard let lyrics = try await lyricsStore.fetch(next), !lyrics.isInstrumental else {
                     Self.log.info("Préchargement : pas de paroles pour « \(next.title, privacy: .public) »")
                     return
                 }
                 // Traduction coupée ou à la demande : on ne prépare que les paroles.
                 if self.translationHidden || self.bubbleCompact || !Preferences.autoTranslate { return }
-                _ = try await fetchTranslation(next, lyrics: lyrics, engine: engine)
+                _ = try await translationStore.fetch(next, lyrics: lyrics, engine: engine)
                 Self.log.info("Préchargement terminé : « \(next.title, privacy: .public) » est en cache")
             } catch {
                 Self.log.error("Préchargement échoué : \(error.localizedDescription, privacy: .public)")
             }
         }
-    }
-}
-
-private extension String {
-    /// Empreinte stable entre les lancements (hashValue est aléatoire à chaque lancement).
-    var hashValueStable: String {
-        var h: UInt64 = 1469598103934665603
-        for b in utf8 { h = (h ^ UInt64(b)) &* 1099511628211 }
-        return String(h, radix: 16)
     }
 }
