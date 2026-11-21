@@ -193,7 +193,7 @@ private struct TranslationSettings: View {
                 .pickerStyle(.radioGroup)
                 Toggle("Traduire automatiquement", isOn: $autoTranslate)
                     .onChange(of: autoTranslate) { app.autoTranslateChanged() }
-                Text("Désactivé : rien n'est traduit tant que tu ne cliques pas sur la pilule « EN → FR ». Un son déjà traduit s'affiche directement.")
+                Text("Désactivé : rien n'est traduit tant que tu ne cliques pas sur la pilule « EN → FR ». Un son déjà traduit s'affiche directement. Raccourci : clic droit sur la pilule (∞ quand c'est activé).")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Préparer le morceau suivant à l'avance", isOn: $prefetchNext)
                 Toggle("Traduire les chansons en français en anglais", isOn: $frenchToEnglish)

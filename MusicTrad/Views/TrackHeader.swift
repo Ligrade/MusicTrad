@@ -90,6 +90,7 @@ private struct Pill<Content: View>: View {
 /// Rien pour une chanson en français.
 private struct LanguagePill: View {
     @Environment(AppState.self) private var app
+    @AppStorage(SettingsKey.autoTranslate) private var autoTranslate = false
     let language: Locale.Language?
     @State private var pulsing = false
 
@@ -121,17 +122,31 @@ private struct LanguagePill: View {
             let shown = app.translationShown
             Button { app.languagePillTapped() } label: {
                 Pill {
-                    Text("\(language?.pillCode ?? "EN") → FR")
-                        .monospaced()
-                        .strikethrough(hidden)
-                        // vert pendant la traduction ; estompé tant que rien n'est traduit ou quand c'est barré
-                        .foregroundStyle(translating ? Color.green : shown ? Color.primary : Color.secondary)
+                    HStack(spacing: 5) {
+                        // ∞ : traduction automatique activée (clic droit sur la pilule pour basculer).
+                        if autoTranslate {
+                            Image(systemName: "infinity")
+                                .font(.caption.weight(.bold))
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                        Text("\(language?.pillCode ?? "EN") → FR")
+                            .monospaced()
+                            .strikethrough(hidden)
+                    }
+                    // vert pendant la traduction ; estompé tant que rien n'est traduit ou quand c'est barré
+                    .foregroundStyle(translating ? Color.green : shown ? Color.primary : Color.secondary)
                 }
                 .contentShape(.capsule)
             }
             .buttonStyle(.plain)
+            .overlay(RightClickCatcher {
+                withAnimation(.snappy) { autoTranslate.toggle() }
+                app.autoTranslateChanged()
+            })
             .disabled(language == nil)
-            .help(hidden ? "Afficher la traduction" : shown ? "Masquer la traduction" : "Traduire ce son")
+            .animation(.snappy, value: autoTranslate)
+            .help((hidden ? "Afficher la traduction" : shown ? "Masquer la traduction" : "Traduire ce son")
+                  + (autoTranslate ? " · clic droit : traduction auto ∞ désactivée" : " · clic droit : traduire automatiquement ∞"))
             .animation(.snappy, value: hidden)
             .animation(.snappy, value: shown)
             .opacity(language == nil ? 0 : 1)
@@ -283,4 +298,25 @@ private struct FavoriteButton: View {
         .id(app.track?.id)   // nouveau morceau = nouvelle étoile, sans transition
         .help(app.isFavorited ? "Retirer des titres favoris" : "Ajouter aux titres favoris")
     }
+}
+
+/// Capte uniquement le clic droit ; les clics gauches traversent jusqu'au bouton en dessous.
+private struct RightClickCatcher: NSViewRepresentable {
+    let action: () -> Void
+
+    final class CatcherView: NSView {
+        var action: () -> Void = {}
+        override func hitTest(_ point: NSPoint) -> NSView? {
+            NSApp.currentEvent?.type == .rightMouseDown ? super.hitTest(point) : nil
+        }
+        override func rightMouseDown(with event: NSEvent) { action() }
+    }
+
+    func makeNSView(context: Context) -> CatcherView {
+        let view = CatcherView()
+        view.action = action
+        return view
+    }
+
+    func updateNSView(_ view: CatcherView, context: Context) { view.action = action }
 }
