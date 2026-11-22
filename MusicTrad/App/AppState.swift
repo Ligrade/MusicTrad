@@ -335,7 +335,7 @@ final class AppState {
         artworkService = ArtworkService(runner: monitor.runner)
         nextTrackPredictor = NextTrackPredictor(runner: monitor.runner)
         monitor.onUpdate = { [weak self] state in self?.handle(state) }
-        if !ecoMode { startWork() } else { installEcoWake() }
+        if !ecoMode { startWork() } else { installEcoWake(); wakeIfMusicAlreadyPlaying() }
         // Nettoyage du cache au lancement puis une fois par jour.
         maintenanceTask = Task {
             while !Task.isCancelled {
@@ -385,6 +385,16 @@ final class AppState {
         ) { [weak self] note in
             guard (note.userInfo?["Player State"] as? String) == "Playing" else { return }
             MainActor.assumeIsolated { self?.wakeFromEcoForMusic() }
+        }
+    }
+
+    /// « Démarrer en mode éco » alors que Musique joue déjà : la notification « Playing » est passée
+    /// avant le lancement et ne reviendra qu'au prochain play ou changement de morceau.
+    /// Une seule lecture de Musique (rien si elle est fermée) pour se réveiller tout de suite.
+    private func wakeIfMusicAlreadyPlaying() {
+        Task {
+            guard await monitor.runner.poll().isPlaying else { return }
+            wakeFromEcoForMusic()
         }
     }
 

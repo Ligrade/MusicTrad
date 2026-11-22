@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://github.com/Ligrade/MusicTrad/actions/workflows/ci.yml"><img src="https://github.com/Ligrade/MusicTrad/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/version-2.0.2-blue" alt="Version 2.0.2">
+  <img src="https://img.shields.io/badge/version-2.0.3-blue" alt="Version 2.0.3">
   <img src="https://img.shields.io/badge/macOS-26%20Tahoe%2B-black?logo=apple" alt="macOS 26+">
   <img src="https://img.shields.io/badge/Swift-6-orange?logo=swift" alt="Swift 6">
   <img src="https://img.shields.io/badge/d%C3%A9pendances-0-brightgreen" alt="0 dependencies">

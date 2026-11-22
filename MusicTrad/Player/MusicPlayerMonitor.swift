@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import OSLog
 
 /// Lit l'état de l'app Musique par AppleScript.
 /// Paroles affichées : toutes les 0,5 s. Rien à l'écran : Musique prévient elle-même
@@ -409,6 +410,10 @@ nonisolated final class AppleScriptRunner: @unchecked Sendable {
         }
     }
 
+    private static let log = Logger(subsystem: "fr.dynamicagence.MusicTrad", category: "player")
+    /// Dernier code d'erreur AppleScript journalisé (-1 au départ : le premier succès est journalisé aussi).
+    private var lastErrorCode = -1
+
     private func execute() -> PlaybackState {
         var error: NSDictionary?
         if script == nil {
@@ -421,6 +426,10 @@ nonisolated final class AppleScriptRunner: @unchecked Sendable {
         }
         guard let result = script?.executeAndReturnError(&error) else {
             let code = error?[NSAppleScript.errorNumber] as? Int ?? 0
+            if code != lastErrorCode {
+                lastErrorCode = code
+                Self.log.error("Lecture de Musique impossible : erreur \(code, privacy: .public)")
+            }
             // -1743 : accès refusé ; -1744 : autorisation requise mais non demandée
             if code == -1743 || code == -1744 { return .notAuthorized }
             if code == -600 { return .musicNotRunning } // app quittée entre-temps
@@ -428,6 +437,10 @@ nonisolated final class AppleScriptRunner: @unchecked Sendable {
             return .error(msg)
         }
 
+        if lastErrorCode != 0 {
+            lastErrorCode = 0
+            Self.log.notice("Lecture de Musique OK")
+        }
         let state = result.atIndex(1)?.stringValue ?? "stopped"
         guard result.numberOfItems >= 7 else { return .stopped }
 
