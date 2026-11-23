@@ -89,11 +89,12 @@ private struct WindowResizeAnimator: NSViewRepresentable {
 
     /// Filet de sécurité : peu après, si le contenu a encore changé de taille, la fenêtre s'y recale.
     static func settle(_ window: NSWindow, anchorX: CGFloat, top: CGFloat, generation: Int, fixed: CGSize?, _ c: Coordinator) {
-        for delay in [0.05, 0.2, 0.5] {
+        // Jusqu'à 2 s : après une longue veille, SwiftUI peut mettre un moment à poser la nouvelle taille.
+        for delay in [0.05, 0.2, 0.5, 1, 2] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 guard generation == c.generation, !c.animating, window.isVisible else { return }
-                let size = fixed ?? contentSize(of: window)
-                guard size != window.frame.size else { return }
+                guard let size = fixed ?? contentSize(of: window), size != window.frame.size else { return }
+                releaseSizeLimits(of: window)
                 let target = frame(size, anchorX: anchorX, top: top, in: window)
                 window.setFrame(target, display: true)
                 c.stableFrame = target
@@ -102,11 +103,20 @@ private struct WindowResizeAnimator: NSViewRepresentable {
     }
 
     /// Taille voulue par le contenu SwiftUI (la fenêtre peut ne pas l'avoir encore prise).
-    static func contentSize(of window: NSWindow) -> NSSize {
-        guard let content = window.contentView else { return window.frame.size }
+    /// `nil` si la mesure n'est pas exploitable : l'appelant réessaie au lieu de garder l'ancienne taille.
+    static func contentSize(of window: NSWindow) -> NSSize? {
+        guard let content = window.contentView else { return nil }
         content.layoutSubtreeIfNeeded()
         let fit = content.fittingSize
-        return fit.width > 40 && fit.height > 40 ? fit : window.frame.size
+        return fit.width > 40 && fit.height > 40 ? fit : nil
+    }
+
+    /// Les bornes de la fenêtre peuvent encore valoir l'ancienne taille (éco 420) et brider setFrame.
+    static func releaseSizeLimits(of window: NSWindow) {
+        window.contentMinSize = .zero
+        window.contentMaxSize = NSSize(width: 10_000, height: 10_000)
+        window.minSize = .zero
+        window.maxSize = NSSize(width: 10_000, height: 10_000)
     }
 
     /// Centre horizontal de l'icône de MusicTrad dans la barre des menus (sur l'écran de la bulle).
@@ -135,7 +145,13 @@ private struct WindowResizeAnimator: NSViewRepresentable {
         // Attend que SwiftUI ait posé la nouvelle taille.
         DispatchQueue.main.async {
             guard generation == c.generation else { return }   // un autre clic est passé entre-temps
-            let size = fixedSize ?? Self.contentSize(of: window)
+            guard let size = fixedSize ?? Self.contentSize(of: window) else {
+                // Mesure inutilisable : on ne fige rien, le filet réessaie jusqu'à avoir la bonne taille.
+                c.animating = false
+                Self.settle(window, anchorX: anchorX, top: anchorTop, generation: generation, fixed: fixedSize, c)
+                return
+            }
+            Self.releaseSizeLimits(of: window)
             let target = Self.frame(size, anchorX: anchorX, top: anchorTop, in: window)
             // Dépliage (repliée → paroles) ou clics rapprochés : on se place directement, sans animation
             // (sinon la fenêtre montre un instant la grande taille ou reste coincée en cours de route).
@@ -148,6 +164,14 @@ private struct WindowResizeAnimator: NSViewRepresentable {
                 return
             }
             c.animating = true
+            // Sécurité : si AppKit n'appelle jamais la fin d'animation (fenêtre masquée, veille), on ne reste pas bloqué.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                guard generation == c.generation, c.animating else { return }
+                c.animating = false
+                window.setFrame(target, display: true)
+                c.stableFrame = target
+                Self.settle(window, anchorX: anchorX, top: anchorTop, generation: generation, fixed: fixedSize, c)
+            }
             window.setFrame(old, display: false)
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.32

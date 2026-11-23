@@ -19,7 +19,7 @@ targets:
       path: MusicTrad/Info.plist
       properties:
         CFBundleDisplayName: MusicTrad
-        CFBundleShortVersionString: "2.0.3"
+        CFBundleShortVersionString: "2.0.4"
         CFBundleVersion: "18"
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.music
