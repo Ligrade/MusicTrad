@@ -13,7 +13,7 @@ struct MenuBarContentView: View {
     var body: some View {
         Group {
             if app.ecoMode {
-                // Mode éco : petite fenêtre carrée, la pilule et le bouton pour rallumer.
+                // Mode éco : écran de veille, brièvement visible (un clic sur l'icône rallume tout seul).
                 VStack(spacing: 0) {
                     HStack { Spacer(); AppButtons() }
                         .padding(14)
@@ -50,7 +50,11 @@ struct MenuBarContentView: View {
         .environment(\.inMenuBubble, true)
         .background { LyricsBackground() }
         .preferredColorScheme(.dark)
-        .onAppear { app.viewAppeared() }
+        .onAppear {
+            app.viewAppeared()
+            // Clic sur l'icône en mode éco : on sort de l'éco tout de suite (lecteur ou paroles selon la dernière vue).
+            if app.ecoMode { changeBubbleLayout { app.setEcoMode(false) } }
+        }
         .onDisappear {
             app.viewDisappeared()
             app.libraryOpen = false   // à la réouverture : directement les paroles en direct
