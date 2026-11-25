@@ -50,15 +50,15 @@ enum Preferences {
     private static var d: UserDefaults { .standard }
 
     static var syncOffset: Double { d.object(forKey: SettingsKey.syncOffset) as? Double ?? SettingsDefault.syncOffset }
-    /// Traduire chaque son automatiquement (désactivé par défaut : on traduit au clic sur la pilule).
-    static var autoTranslate: Bool { d.bool(forKey: SettingsKey.autoTranslate) }
+    /// Traduire chaque son automatiquement (activé par défaut ; à désactiver dans les réglages ou au clic droit sur la pilule).
+    static var autoTranslate: Bool { d.object(forKey: SettingsKey.autoTranslate) as? Bool ?? true }
     /// Traduire les chansons en français en anglais (désactivé par défaut).
     static var frenchToEnglish: Bool { d.bool(forKey: SettingsKey.frenchToEnglish) }
     static var prefetchNext: Bool { d.object(forKey: SettingsKey.prefetchNext) as? Bool ?? true }
     /// Fenêtre flottante désactivée par défaut : à cocher dans Réglages › Général.
     static var floatingWindowEnabled: Bool { d.bool(forKey: SettingsKey.floatingWindowEnabled) }
-    /// Démarrer en mode éco (désactivé par défaut).
-    static var ecoAtLaunch: Bool { d.object(forKey: SettingsKey.ecoAtLaunch) as? Bool ?? false }
+    /// Toujours faux : l'app se lance en mode traduction.
+    static var ecoAtLaunch: Bool { false }
     /// Passage automatique en mode éco après ce nombre de minutes sans regarder l'app (0 = jamais ; 30 min par défaut).
     static var autoEcoMinutes: Int { d.object(forKey: SettingsKey.autoEcoMinutes) as? Int ?? 30 }
     static var openWindowAtLaunch: Bool { floatingWindowEnabled && d.bool(forKey: SettingsKey.openWindowAtLaunch) }

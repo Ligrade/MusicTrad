@@ -76,6 +76,8 @@ final class AppState {
         isOnScreen = true
         lastUse = .now
         guard visibleViews == 1, !ecoMode else { return }
+        // Bulle rouverte : traduit le son en cours s'il n'a pas pu l'être pendant qu'elle était fermée.
+        if !bubbleCompact, lyrics != nil, translationStatus == .idle { retranslate() }
         // Première vue ouverte : relecture immédiate de Musique et horloge réveillée tout de suite.
         monitor.setVisible(true)
         startTicker()
@@ -644,7 +646,7 @@ final class AppState {
     }
 
     /// Bulle repliée (juste l'en-tête et les commandes) : paroles cachées, donc rien n'est traduit.
-    private(set) var bubbleCompact = UserDefaults.standard.bool(forKey: SettingsKey.bubbleCompact)
+    private(set) var bubbleCompact = false   // jamais gardé d'un lancement à l'autre : l'app démarre en mode traduction
 
     func toggleBubbleCompact() { setBubbleCompact(!bubbleCompact) }
 
@@ -700,6 +702,11 @@ final class AppState {
         if let cached = translationStore.cached(track, lyrics: lyrics, engine: engine,
                                                 target: target, source: sourceLanguage) {
             translationStatus = .done(cached)   // déjà traduit : affiché directement
+            return
+        }
+        // Bulle fermée : on économise, pas de traduction (elle part à l'ouverture, voir viewAppeared).
+        if visibleViews == 0 {
+            translationStatus = .idle
             return
         }
         // Traduction à la demande (par défaut) : on attend le clic sur la pilule.
@@ -759,7 +766,7 @@ final class AppState {
                     return
                 }
                 // Traduction coupée ou à la demande : on ne prépare que les paroles.
-                if self.translationHidden || self.bubbleCompact || !Preferences.autoTranslate { return }
+                if self.translationHidden || self.bubbleCompact || self.visibleViews == 0 || !Preferences.autoTranslate { return }
                 _ = try await translationStore.fetch(next, lyrics: lyrics, engine: engine)
                 Self.log.info("Préchargement terminé : « \(next.title, privacy: .public) » est en cache")
             } catch {

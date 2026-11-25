@@ -33,7 +33,6 @@ struct SettingsView: View {
 private struct GeneralSettings: View {
     @AppStorage(SettingsKey.floatingWindowEnabled) private var floatingWindowEnabled = false
     @AppStorage(SettingsKey.openWindowAtLaunch) private var openWindowAtLaunch = false
-    @AppStorage(SettingsKey.ecoAtLaunch) private var ecoAtLaunch = false
     @AppStorage(SettingsKey.onboardingSeen) private var onboardingSeen = false
     @AppStorage(SettingsKey.autoEcoMinutes) private var autoEcoMinutes = 30
     @AppStorage(SettingsKey.myStationURL) private var myStationURL = ""
@@ -57,9 +56,6 @@ private struct GeneralSettings: View {
                 if let loginError { Text(loginError).font(.caption).foregroundStyle(.orange) }
                 Button("Revoir la présentation des fonctions") { onboardingSeen = false }
                     .disabled(!onboardingSeen)
-                Toggle("Démarrer en mode éco", isOn: $ecoAtLaunch)
-                Text("L'app se lance en veille et se réveille en lecteur dès que la musique joue (ou clique sur la note verte).")
-                    .font(.caption).foregroundStyle(.secondary)
                 Picker("Paroles → lecteur", selection: $autoEcoMinutes) {
                     Text("Après 30 min").tag(30)
                     Text("Après 1 h").tag(60)
@@ -193,7 +189,7 @@ private struct TranslationSettings: View {
     @AppStorage(SettingsKey.engine) private var engine = TranslationEngine.apple
     @AppStorage(SettingsKey.prefetchNext) private var prefetchNext = true
     @AppStorage(SettingsKey.frenchToEnglish) private var frenchToEnglish = false
-    @AppStorage(SettingsKey.autoTranslate) private var autoTranslate = false
+    @AppStorage(SettingsKey.autoTranslate) private var autoTranslate = true
 
     @State private var apiKey = ""
     @State private var hasKey = KeychainStore.load() != nil

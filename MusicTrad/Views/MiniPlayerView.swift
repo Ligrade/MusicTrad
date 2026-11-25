@@ -31,6 +31,32 @@ struct MiniPlayerView: View {
                 .padding(.horizontal, 14)
                 .padding(.top, 12)
 
+                if case .musicNotRunning = app.playback {
+                    // Musique fermée : même proposition que dans la bulle des paroles.
+                    Spacer()
+                    VStack(spacing: 10) {
+                        Image(nsImage: NSApplication.shared.applicationIconImage)
+                            .resizable()
+                            .frame(width: 64, height: 64)
+                        Text("Musique n'est pas ouverte")
+                            .font(.headline)
+                        StartButton(title: "Ouvrir Musique", glyph: "♫") { app.openMusic() }
+                            .padding(.top, 6)
+                    }
+                    Spacer()
+                } else {
+                miniContent
+                }
+            }
+        }
+        .frame(width: side, height: side)
+        .onHover { over in withAnimation(.easeInOut(duration: 0.2)) { hovering = over } }
+        .task(id: "\(albumKey)|\(animated)|\(app.isOnScreen)") { await loadMotion() }
+    }
+
+    @ViewBuilder
+    private var miniContent: some View {
+        Group {
                 if motionURL == nil {
                     Spacer(minLength: 4)
                     artwork
@@ -53,11 +79,7 @@ struct MiniPlayerView: View {
                 PlaybackControls(size: 17, showsExtras: false)
                     .padding(.top, 2)
                     .padding(.bottom, 10)
-            }
         }
-        .frame(width: side, height: side)
-        .onHover { over in withAnimation(.easeInOut(duration: 0.2)) { hovering = over } }
-        .task(id: "\(albumKey)|\(animated)|\(app.isOnScreen)") { await loadMotion() }
     }
 
     private var titles: some View {

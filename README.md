@@ -13,7 +13,7 @@
 
 <p align="center">
   <a href="https://github.com/Ligrade/MusicTrad/actions/workflows/ci.yml"><img src="https://github.com/Ligrade/MusicTrad/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/version-2.0.4-blue" alt="Version 2.0.4">
+  <img src="https://img.shields.io/badge/version-2.0.5-blue" alt="Version 2.0.5">
   <img src="https://img.shields.io/badge/macOS-26%20Tahoe%2B-black?logo=apple" alt="macOS 26+">
   <img src="https://img.shields.io/badge/Swift-6-orange?logo=swift" alt="Swift 6">
   <img src="https://img.shields.io/badge/d%C3%A9pendances-0-brightgreen" alt="0 dependencies">
@@ -136,7 +136,7 @@ L'app se loge dans la barre des menus (icône bulle de paroles) et n'apparaît p
 
 | Onglet | Options |
 |---|---|
-| **Général** | Ouverture à la connexion, démarrage en mode éco, lien de « Ma station », fenêtre flottante (désactivée par défaut), accès à Musique |
+| **Général** | Ouverture à la connexion, lien de « Ma station », fenêtre flottante (désactivée par défaut), accès à Musique |
 | **Affichage** | Fond des paroles (couleur de l'album ou noir), pochette animée, taille des paroles et de la traduction, paroles originales oui/non, flou des lignes inactives, décalage de synchronisation |
 | **Traduction** | Moteur Apple ou DeepL, traduction automatique, préparation du morceau suivant, chansons en français traduites en anglais, clé DeepL avec test et consommation du mois |
 | **Cache** | Espace utilisé, taille maximale (50 Mo par défaut), suppression après 2 semaines à 3 mois sans écoute (3 mois par défaut, favoris jamais supprimés), ouverture dans le Finder, vidage |

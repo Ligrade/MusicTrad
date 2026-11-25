@@ -141,7 +141,7 @@ struct LyricsView: View {
 }
 
 /// Gros bouton rouge façon Musique (« Ouvrir Musique », « Ma station »).
-private struct StartButton: View {
+struct StartButton: View {
     let title: String
     var symbol: String? = nil
     /// Caractère affiché à la place d'un symbole (ex. « ♫ »).

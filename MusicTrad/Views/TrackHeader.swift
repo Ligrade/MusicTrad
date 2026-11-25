@@ -90,7 +90,7 @@ private struct Pill<Content: View>: View {
 /// Rien pour une chanson en français.
 private struct LanguagePill: View {
     @Environment(AppState.self) private var app
-    @AppStorage(SettingsKey.autoTranslate) private var autoTranslate = false
+    @AppStorage(SettingsKey.autoTranslate) private var autoTranslate = true
     let language: Locale.Language?
     @State private var pulsing = false
 
